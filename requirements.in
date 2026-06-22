@@ -1,0 +1,9 @@
+fastapi[standard]
+passlib[bcrypt]
+pyjwt[crypto]
+colorlog
+aiosmtplib
+pydantic-settings
+aiofiles
+beanie
+motor
