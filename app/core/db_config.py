@@ -4,11 +4,12 @@ from app.core.settings import setting
 from app.models.user import User, TempUserOTP, EmailSetting
 from app.models.profile import Profile
 from app.models.motivation import Motivation
+from app.models.task import Task
 
 
 async def init_db():
     client = AsyncMongoClient(setting.MONGODB_URL)
     await init_beanie(
         database=client.get_database(),
-        document_models=[User, Profile, TempUserOTP, EmailSetting, Motivation]
+        document_models=[User, Profile, TempUserOTP, EmailSetting, Motivation, Task]
     )

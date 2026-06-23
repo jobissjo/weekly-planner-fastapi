@@ -2,7 +2,7 @@ from typing import TypeVar, Generic, Optional, Literal
 from pydantic import BaseModel
 from app.models.enums import UserRole
 
-T = TypeVar("T", bound=BaseModel)
+T = TypeVar("T")
 
 class BasicUserInfo(BaseModel):
     email: str
