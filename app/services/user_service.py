@@ -75,6 +75,12 @@ class UserService:
             "refresh_token": refresh_token,
             "token_type": "Bearer",
             "role": existing_user.role,
+            'user':{
+                'email':existing_user.email,
+                'first_name':existing_user.first_name,
+                'last_name':existing_user.last_name,
+                'role':existing_user.role.value,
+            }
         }
 
     async def verify_email(self, data: user_schema.EmailVerifySchema):

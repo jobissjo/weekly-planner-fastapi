@@ -4,6 +4,12 @@ from app.models.enums import UserRole
 
 T = TypeVar("T", bound=BaseModel)
 
+class BasicUserInfo(BaseModel):
+    email: str
+    first_name: str
+    last_name: str
+    role: UserRole
+
 class BaseResponse(BaseModel, Generic[T]):
     status: Literal["success", "error"]
     message: str
@@ -14,6 +20,7 @@ class TokenResponse(BaseModel):
     refresh_token: Optional[str] = None
     token_type: str
     role: UserRole
+    user: BasicUserInfo
 
 class RefreshTokenBody(BaseModel):
     refresh_token: str
