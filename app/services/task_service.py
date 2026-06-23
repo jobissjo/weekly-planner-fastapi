@@ -7,15 +7,22 @@ from beanie import PydanticObjectId
 from app.core.logger_config import logger as default_logger
 
 
+from app.services.streak_service import StreakService
+
+
 class TaskService:
 
     def __init__(self, logger=None):
         self.logger = logger or default_logger
+        self.streak_service = StreakService()
 
     async def create_task(
         self, user_id: PydanticObjectId, schema: TaskCreateSchema
     ) -> Task:
-        return await TaskRepository.create_task(user_id, schema)
+        task = await TaskRepository.create_task(user_id, schema)
+        if task.status == "completed":
+            await self.streak_service.update_streak_on_task_status_change(user_id, task.date, True)
+        return task
 
     async def get_task_by_id(self, task_id: str, user_id: PydanticObjectId) -> Task:
         task = await TaskRepository.get_task_by_id(task_id, user_id)
@@ -41,10 +48,27 @@ class TaskService:
         if not task:
             raise CustomException("Task not found", status_code=404)
 
+        old_status = task.status
+        old_date = task.date
+
         updated_task = await TaskRepository.update_task(task_id, user_id, schema)
+
+        # Trigger streak recalculation if completed status or date changes
+        if old_status == "completed" or updated_task.status == "completed" or old_date != updated_task.date:
+            await self.streak_service.recalculate_user_streak(user_id)
+
         return updated_task
 
     async def delete_task(self, task_id: str, user_id: PydanticObjectId) -> None:
+        task = await TaskRepository.get_task_by_id(task_id, user_id)
+        if not task:
+            raise CustomException("Task not found", status_code=404)
+
+        old_status = task.status
+
         deleted = await TaskRepository.delete_task(task_id, user_id)
         if not deleted:
             raise CustomException("Task not found", status_code=404)
+
+        if old_status == "completed":
+            await self.streak_service.recalculate_user_streak(user_id)
