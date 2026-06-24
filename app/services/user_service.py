@@ -129,6 +129,12 @@ class UserService:
             "refresh_token": refresh_token,
             "token_type": "Bearer",
             "role": user.role,
+            "user": {
+                "email": user.email,
+                "first_name": user.first_name,
+                "last_name": user.last_name,
+                "role": user.role.value,
+            }
         }
 
     # Delegated from OTP service:
@@ -184,6 +190,24 @@ class UserService:
             user_id=user_id,
             bio=data.bio,
             profile_picture_url=profile_picture_url,
+        )
+
+    async def change_password(self, user_id: str, old_password: str, new_password: str):
+        user = await UserRepository.get_user_by_id(user_id)
+        if not user:
+            raise CustomException("User not found", 404)
+
+        if not await verify_password(old_password, user.password):
+            raise CustomException("Incorrect current password", 400)
+
+        user.password = await hash_password(new_password)
+        await user.save()
+
+    async def update_notification_preferences(
+        self, user_id: str, email_notifications: bool, reminders: bool
+    ):
+        await UserRepository.update_notification_preferences(
+            user_id, email_notifications, reminders
         )
 
 

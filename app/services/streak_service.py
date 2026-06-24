@@ -218,3 +218,106 @@ class StreakService:
         # We only need to trigger recalculation if the completed-day status of this date changes.
         # So we recalculate to keep things simple and perfectly correct.
         await self.recalculate_user_streak(user_id)
+
+    async def get_streak_history(
+        self, user_id: PydanticObjectId, start_date_str: Optional[str] = None, end_date_str: Optional[str] = None
+    ) -> List[dict]:
+        # 1. Fetch unique sorted completed task dates
+        completed_tasks = await Task.find(
+            Task.user_id == user_id, Task.status == TaskStatus.COMPLETED
+        ).to_list()
+        completed_dates = sorted(list(set(t.date for t in completed_tasks)))
+
+        # 2. Get active rule configurations
+        active_rule = await self.get_active_streak_rule()
+
+        # 3. Determine start and end date
+        today = date.today()
+        if end_date_str:
+            try:
+                end_date = datetime.strptime(end_date_str, "%Y-%m-%d").date()
+            except Exception:
+                end_date = today
+        else:
+            end_date = today
+
+        if start_date_str:
+            try:
+                start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
+            except Exception:
+                start_date = end_date - timedelta(days=90)
+        else:
+            start_date = end_date - timedelta(days=90)
+
+        # 4. Simulate timeline from first completed date (or start_date, whichever is earlier)
+        # to ensure freezes and streak counts are correctly calculated leading up to our range.
+        sim_start = start_date
+        if completed_dates:
+            try:
+                first_completed = datetime.strptime(completed_dates[0], "%Y-%m-%d").date()
+                if first_completed < sim_start:
+                    sim_start = first_completed
+            except Exception:
+                pass
+
+        current_streak = 0
+        available_freezes = 0
+        last_rewarded_streak = 0
+        last_completed_date: Optional[date] = None
+
+        all_day_statuses = {}
+        completed_set = set(completed_dates)
+
+        curr = sim_start
+        while curr <= end_date:
+            date_str = curr.strftime("%Y-%m-%d")
+
+            if date_str in completed_set:
+                all_day_statuses[date_str] = "completed"
+                if last_completed_date is None:
+                    current_streak = 1
+                else:
+                    diff = (curr - last_completed_date).days
+                    if diff == 1:
+                        current_streak += 1
+                
+                last_completed_date = curr
+
+                # Check and grant freezes
+                if active_rule:
+                    req = active_rule.required_consecutive_days
+                    if current_streak - last_rewarded_streak >= req:
+                        granted = active_rule.freezes_to_grant
+                        available_freezes = min(
+                            available_freezes + granted, active_rule.max_freezes_allowed
+                        )
+                        last_rewarded_streak = current_streak
+            else:
+                if last_completed_date is not None:
+                    if available_freezes > 0:
+                        available_freezes -= 1
+                        current_streak += 1
+                        last_completed_date = curr
+                        all_day_statuses[date_str] = "freezed"
+                    else:
+                        current_streak = 0
+                        last_rewarded_streak = 0
+                        all_day_statuses[date_str] = "missed"
+                else:
+                    all_day_statuses[date_str] = "empty"
+
+            curr += timedelta(days=1)
+
+        # 5. Filter and format the results to the requested range [start_date, end_date]
+        result = []
+        curr = start_date
+        while curr <= end_date:
+            date_str = curr.strftime("%Y-%m-%d")
+            status = all_day_statuses.get(date_str, "empty")
+            result.append({
+                "date": date_str,
+                "status": status
+            })
+            curr += timedelta(days=1)
+
+        return result

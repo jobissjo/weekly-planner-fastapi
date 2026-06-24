@@ -1,9 +1,15 @@
-from typing import Annotated
+from typing import Annotated, List
 from fastapi import APIRouter, Depends, UploadFile, File, Form
-from app.core.permissions import any_user_role
+from app.core.permissions import any_user_role, only_admin
 from app.models import User
+from app.models.streak import UserStreak
 from app.schemas.common_schema import BaseResponse
-from app.schemas.user_schema import ProfileUpdateSchema, ProfileUpdateForm
+from app.schemas.user_schema import (
+    ProfileUpdateSchema,
+    ProfileUpdateForm,
+    ChangePasswordSchema,
+    NotificationPreferenceSchema,
+)
 
 from app.services import EmailService, UserService
 
@@ -32,3 +38,45 @@ async def update_profile_form(
 ):
     await user_service.update_profile_form(str(current_user.id), form_data)
     return BaseResponse(status="success", message="Profile updated successfully", data=None)
+
+@router.post("/change-password", response_model=BaseResponse[None])
+async def change_password(
+    data: ChangePasswordSchema,
+    current_user: User = Depends(any_user_role),
+):
+    await user_service.change_password(str(current_user.id), data.old_password, data.new_password)
+    return BaseResponse(status="success", message="Password changed successfully", data=None)
+
+@router.patch("/notification-preference", response_model=BaseResponse[None])
+async def update_notification_preference(
+    data: NotificationPreferenceSchema,
+    current_user: User = Depends(any_user_role),
+):
+    await user_service.update_notification_preferences(
+        str(current_user.id), data.email_notifications, data.reminders
+    )
+    return BaseResponse(status="success", message="Notification preferences updated successfully", data=None)
+
+
+@router.get("/admin/users", response_model=BaseResponse[List[dict]])
+async def admin_list_users(
+    admin_user: User = Depends(only_admin),
+):
+    users = await User.find(User.is_deleted == False).to_list()
+    result = []
+    for u in users:
+        # Get streak for this user
+        streak = await UserStreak.find_one(UserStreak.user_id == u.id)
+        result.append({
+            "id": str(u.id),
+            "name": f"{u.first_name} {u.last_name}",
+            "email": u.email,
+            "role": u.role.value,
+            "streakCount": streak.current_streak if streak else 0,
+            "streakFreezes": streak.available_freezes if streak else 0,
+        })
+    return BaseResponse(
+        status="success",
+        message="Users retrieved successfully",
+        data=result,
+    )

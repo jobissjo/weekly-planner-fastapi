@@ -11,6 +11,8 @@ class Profile(Document):
     user: Optional[Link["User"]] = Field(default=None, unique=True, link_type="User.profile")
     bio: Optional[str] = Field(default=None, max_length=500)
     profile_picture_url: Optional[str] = Field(default=None, max_length=255)
+    email_notifications: bool = True
+    reminders: bool = True
 
     class Settings:
         collection_name = "profiles"

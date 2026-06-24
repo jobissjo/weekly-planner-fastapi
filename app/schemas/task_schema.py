@@ -38,6 +38,7 @@ class TaskResponse(BaseModel):
     isOptional: bool
     status: TaskStatus
     createdAt: datetime
+    userId: PydanticObjectId = Field(..., validation_alias="user_id")
 
     model_config = {
         "from_attributes": True

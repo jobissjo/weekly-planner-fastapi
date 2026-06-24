@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 from fastapi import APIRouter, Depends, Query
 from app.core.permissions import only_admin, any_user_role
 from app.models.user import User
@@ -8,6 +8,7 @@ from app.schemas.streak_schema import (
     StreakRuleUpdateSchema,
     StreakRuleResponse,
     UserStreakResponse,
+    StreakDayStatus,
 )
 from app.services.streak_service import StreakService
 
@@ -94,4 +95,18 @@ async def get_user_streak(
         status="success",
         message="User streak retrieved successfully",
         data=UserStreakResponse.model_validate(user_streak),
+    )
+
+
+@router.get("/user/streak/history", response_model=BaseResponse[List[StreakDayStatus]])
+async def get_streak_history(
+    start_date: Optional[str] = Query(None, pattern=r"^\d{4}-\d{2}-\d{2}$"),
+    end_date: Optional[str] = Query(None, pattern=r"^\d{4}-\d{2}-\d{2}$"),
+    current_user: User = Depends(any_user_role),
+):
+    history = await streak_service.get_streak_history(current_user.id, start_date, end_date)
+    return BaseResponse(
+        status="success",
+        message="Streak history retrieved successfully",
+        data=history,
     )

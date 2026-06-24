@@ -50,3 +50,14 @@ class ProfileUpdateForm:
     ):
         self.profile_picture = profile_picture
         self.bio = bio
+
+
+class ChangePasswordSchema(BaseModel):
+    old_password: str = Field(..., min_length=4)
+    new_password: str = Field(..., min_length=4)
+
+
+class NotificationPreferenceSchema(BaseModel):
+    email_notifications: bool
+    reminders: bool
+

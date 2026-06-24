@@ -1,7 +1,8 @@
 from typing import List, Optional
 from fastapi import APIRouter, Depends, Query
-from app.core.permissions import any_user_role
+from app.core.permissions import any_user_role, only_admin
 from app.models.user import User
+from app.models.task import Task
 from app.schemas.common_schema import BaseResponse
 from app.schemas.task_schema import (
     TaskCreateSchema,
@@ -79,4 +80,16 @@ async def delete_task(
         status="success",
         message="Task deleted successfully",
         data=None,
+    )
+
+
+@router.get("/admin/all", response_model=BaseResponse[List[TaskResponse]])
+async def admin_list_all_tasks(
+    admin_user: User = Depends(only_admin),
+):
+    tasks = await Task.find_all().to_list()
+    return BaseResponse(
+        status="success",
+        message="All tasks retrieved successfully",
+        data=[TaskResponse.model_validate(t) for t in tasks],
     )

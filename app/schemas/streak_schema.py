@@ -58,3 +58,9 @@ class StreakRewardHistoryResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class StreakDayStatus(BaseModel):
+    date: str
+    status: str
+

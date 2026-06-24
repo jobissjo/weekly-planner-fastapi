@@ -52,6 +52,26 @@ class UserRepository:
 
         await profile.save()
         return profile
+
+    @staticmethod
+    async def update_notification_preferences(
+        user_id: str,
+        email_notifications: bool,
+        reminders: bool,
+    ) -> Profile:
+        profile = await UserRepository.get_user_profile_by_id(user_id)
+        
+        if not profile:
+            user = await UserRepository.get_user_by_id(user_id)
+            profile = Profile(user=user)
+            await profile.insert()
+
+        profile.email_notifications = email_notifications
+        profile.reminders = reminders
+
+        await profile.save()
+        return profile
+
     
 
 
