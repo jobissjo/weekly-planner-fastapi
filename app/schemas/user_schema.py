@@ -9,6 +9,10 @@ class LoginEmailSchema(BaseModel):
     password: str
 
 
+class GoogleLoginSchema(BaseModel):
+    credential: str
+
+
 class RegisterSchema(BaseModel):
     email: str
     password: str

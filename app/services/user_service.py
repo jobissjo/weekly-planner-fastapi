@@ -1,8 +1,11 @@
 from datetime import datetime, timedelta, timezone
+import httpx
 from app.schemas import user_schema
 from app.models import User, TempUserOTP, Profile
+from app.models.enums import UserRole
 from app.schemas.common_schema import RefreshTokenBody
 from app.utils.common import CustomException
+from app.core.settings import setting
 from app.core.security import (
     create_access_token,
     create_refresh_token,
@@ -64,6 +67,9 @@ class UserService:
         if not existing_user:
             raise CustomException("email not exists", 400)
 
+        if not existing_user.password:
+            raise CustomException("This account is configured for Google Sign-In. Please log in using Google.", 400)
+
         if not await verify_password(user_data.password, existing_user.password):
             raise CustomException("Invalid credentials.", 401)
 
@@ -80,6 +86,68 @@ class UserService:
                 'first_name':existing_user.first_name,
                 'last_name':existing_user.last_name,
                 'role':existing_user.role.value,
+            }
+        }
+
+    async def login_or_register_google(self, credential_token: str):
+        async with httpx.AsyncClient() as client:
+            try:
+                resp = await client.get(
+                    f"https://oauth2.googleapis.com/tokeninfo?id_token={credential_token}"
+                )
+            except Exception as e:
+                raise CustomException("Failed to verify token with Google API.", 400)
+            
+            if resp.status_code != 200:
+                raise CustomException("Invalid Google token.", 400)
+            
+            payload = resp.json()
+
+        if setting.GOOGLE_CLIENT_ID and payload.get("aud") != setting.GOOGLE_CLIENT_ID:
+            raise CustomException("Google token audience mismatch.", 400)
+
+        email = payload.get("email")
+        google_id = payload.get("sub")
+        first_name = payload.get("given_name") or payload.get("name", "Google")
+        last_name = payload.get("family_name") or "User"
+        
+        if not email:
+            raise CustomException("Email not provided by Google.", 400)
+
+        existing_user = await UserRepository.get_user_by_email(email)
+
+        if existing_user:
+            if not getattr(existing_user, "google_id", None):
+                existing_user.google_id = google_id
+                await existing_user.save()
+            if not existing_user.is_active:
+                existing_user.is_active = True
+                await existing_user.save()
+        else:
+            existing_user = User(
+                email=email,
+                password=None,
+                first_name=first_name,
+                last_name=last_name,
+                role=UserRole.USER,
+                is_active=True,
+                google_id=google_id
+            )
+            await existing_user.insert()
+
+        access_token = await create_access_token({"user_id": str(existing_user.id)})
+        refresh_token = await create_refresh_token({"user_id": str(existing_user.id)})
+
+        return {
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "token_type": "Bearer",
+            "role": existing_user.role,
+            "user": {
+                "email": existing_user.email,
+                "first_name": existing_user.first_name,
+                "last_name": existing_user.last_name,
+                "role": existing_user.role.value if hasattr(existing_user.role, "value") else str(existing_user.role),
             }
         }
 

@@ -8,7 +8,8 @@ from app.models.profile import Profile
 
 class User(Document):
     email: str = Field(unique=True, index=True)
-    password: str
+    password: Optional[str] = None
+    google_id: Optional[str] = None
     is_active: bool = True
     is_superuser: bool = False
     first_name: str

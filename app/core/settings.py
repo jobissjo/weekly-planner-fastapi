@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     BASE_DIR: Path = Path(__file__).resolve().parent.parent
     
     MONGODB_URL: Optional[str] = None
+    GOOGLE_CLIENT_ID: Optional[str] = None
 
 
     MEDIA_ROOT: Path = BASE_DIR / "media"
@@ -28,7 +29,7 @@ class Settings(BaseSettings):
     MAX_FILE_MEMORY_SIZE: int = 2 * 1024 * 1024
 
     def model_post_init(self, __context) -> None:
-        if self.ENV == "development":
+        if self.ENV == "development" and not self.MONGODB_URL:
             object.__setattr__(self, "MONGODB_URL", "mongodb://localhost:27017/weekly_planner")
         elif self.ENV == "production":
             if not self.DATABASE_URL:
@@ -45,5 +46,5 @@ class Settings(BaseSettings):
         env_file = ".env"
         env_file_encoding = "utf-8"
         case_sensitive = True
-    
+
 setting = Settings()

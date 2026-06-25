@@ -6,6 +6,7 @@ from app.schemas.user_schema import (
     RegisterSchema,
     LoginEmailSchema,
     EmailVerifySchema,
+    GoogleLoginSchema,
 )
 from fastapi.security import OAuth2PasswordRequestForm
 from app.services import UserService
@@ -53,6 +54,18 @@ async def login(
     return BaseResponse(
         status="success",
         message="User logged in successfully",
+        data=TokenResponse(**token_data),
+    )
+
+
+@router.post("/google")
+async def google_login(
+    data: GoogleLoginSchema
+) -> BaseResponse[TokenResponse]:
+    token_data = await user_service.login_or_register_google(data.credential)
+    return BaseResponse(
+        status="success",
+        message="User logged in via Google successfully",
         data=TokenResponse(**token_data),
     )
 
