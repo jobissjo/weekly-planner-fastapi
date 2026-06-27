@@ -72,6 +72,19 @@ class UserRepository:
         await profile.save()
         return profile
 
+    @staticmethod
+    async def get_users_by_name(name: str) -> list[User]:
+        import re
+        regx = re.compile(rf".*{re.escape(name)}.*", re.IGNORECASE)
+        return await User.find(
+            {"$or": [
+                {"first_name": regx},
+                {"last_name": regx},
+                {"email": regx}
+            ]}
+        ).to_list()
+
+
     
 
 

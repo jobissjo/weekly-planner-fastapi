@@ -72,3 +72,7 @@ class TaskService:
 
         if old_status == "completed":
             await self.streak_service.recalculate_user_streak(user_id)
+
+    async def get_tasks_by_title(self, title: str, user_id: PydanticObjectId) -> List[Task]:
+        return await TaskRepository.get_tasks_by_title(title, user_id)
+

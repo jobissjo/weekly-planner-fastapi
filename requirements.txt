@@ -202,3 +202,12 @@ websockets==16.0
     # via uvicorn
 wtforms==3.2.2
     # via sqladmin
+
+mcp
+langchain
+langchain-openai
+langchain-google-genai
+langchain-community
+langchain-groq
+
+

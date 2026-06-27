@@ -7,3 +7,10 @@ pydantic-settings
 aiofiles
 beanie
 motor
+mcp
+langchain
+langchain-openai
+langchain-google-genai
+langchain-community
+langchain-groq
+

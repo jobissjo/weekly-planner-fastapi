@@ -64,3 +64,15 @@ class TaskRepository:
             return False
         await task.delete()
         return True
+
+    @staticmethod
+    async def get_tasks_by_title(
+        title: str, user_id: PydanticObjectId
+    ) -> List[Task]:
+        import re
+        regx = re.compile(rf".*{re.escape(title)}.*", re.IGNORECASE)
+        return await Task.find(
+            Task.user_id == user_id,
+            {"title": regx}
+        ).to_list()
+

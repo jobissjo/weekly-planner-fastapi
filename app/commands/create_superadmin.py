@@ -29,7 +29,7 @@ def run(
                 last_name=last_name,
                 is_active=True,
                 is_superuser=True,
-                role=UserRole.ADMIN
+                role=UserRole.USER
             )
 
             await user.insert()

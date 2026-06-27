@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.routes.v1 import auth_routes, user_routes, motivation_routes, task_routes, streak_routes, reward_routes
+from app.routes.v1 import auth_routes, user_routes, motivation_routes, task_routes, streak_routes, reward_routes, chatbot_routes
 
 router = APIRouter()
 router.include_router(auth_routes.router)
@@ -8,4 +8,6 @@ router.include_router(motivation_routes.router)
 router.include_router(task_routes.router)
 router.include_router(streak_routes.router)
 router.include_router(reward_routes.router)
+router.include_router(chatbot_routes.router)
+
 

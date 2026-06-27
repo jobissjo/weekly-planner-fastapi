@@ -15,6 +15,16 @@ class Settings(BaseSettings):
     MONGODB_URL: Optional[str] = None
     GOOGLE_CLIENT_ID: Optional[str] = None
 
+    # LLM Settings for Chatbot
+    LLM_PROVIDER: str = "openai"  # "openai", "google", or "groq"
+    OPENAI_API_KEY: Optional[str] = None
+    GEMINI_API_KEY: Optional[str] = None
+    GROQ_API_KEY: Optional[str] = None
+    OPENAI_MODEL_NAME: str = "gpt-4o-mini"
+    GEMINI_MODEL_NAME: str = "gemini-1.5-flash"
+    GROQ_MODEL_NAME: str = "llama-3.3-70b-versatile"
+
+
 
     MEDIA_ROOT: Path = BASE_DIR / "media"
 
