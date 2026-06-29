@@ -25,6 +25,7 @@ class ChatMessage(BaseModel):
 class ChatQuery(BaseModel):
     message: str
     chat_history: Optional[List[ChatMessage]] = None
+    current_date: Optional[str] = None
 
 class ChatReply(BaseModel):
     reply: str
@@ -209,6 +210,20 @@ async def chat_with_bot(
             elif msg.role == "assistant":
                 formatted_history.append(AIMessage(content=msg.content))
 
+    # Resolve date context (fallback to server local time if not provided by frontend)
+    import datetime
+    try:
+        if data.current_date:
+            parsed_date = datetime.datetime.strptime(data.current_date, "%Y-%m-%d").date()
+        else:
+            parsed_date = datetime.date.today()
+        user_date = parsed_date.isoformat()
+        user_weekday = parsed_date.strftime("%A")
+    except Exception:
+        parsed_date = datetime.date.today()
+        user_date = parsed_date.isoformat()
+        user_weekday = parsed_date.strftime("%A")
+
     # 5. Build and execute agent prompt
     prompt = ChatPromptTemplate.from_messages([
         ("system", (
@@ -216,6 +231,7 @@ async def chat_with_bot(
             f"The current user's email is: {current_user.email}.\n"
             f"The current user's name is: {current_user.first_name} {current_user.last_name}.\n"
             f"The current user's role is: {current_user.role.value}.\n"
+            f"Today's date is: {user_date} ({user_weekday}).\n"
             "You can create tasks, list them, search for them, update them, and delete them. "
             "You can only perform actions for the current user. "
             "For administration features, you must verify the user has the admin role via tools."

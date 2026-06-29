@@ -15,6 +15,7 @@ class Task(Document):
     priority: TaskPriority = TaskPriority.MEDIUM
     isOptional: bool = False
     status: TaskStatus = TaskStatus.PENDING
+    completionNotes: Optional[str] = None
     createdAt: datetime = Field(default_factory=datetime.utcnow)
 
     class Settings:

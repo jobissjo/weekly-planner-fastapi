@@ -14,6 +14,7 @@ class TaskCreateSchema(BaseModel):
     priority: TaskPriority = TaskPriority.MEDIUM
     isOptional: bool = False
     status: TaskStatus = TaskStatus.PENDING
+    completionNotes: Optional[str] = None
 
 
 class TaskUpdateSchema(BaseModel):
@@ -25,6 +26,7 @@ class TaskUpdateSchema(BaseModel):
     priority: Optional[TaskPriority] = None
     isOptional: Optional[bool] = None
     status: Optional[TaskStatus] = None
+    completionNotes: Optional[str] = None
 
 
 class TaskResponse(BaseModel):
@@ -37,6 +39,7 @@ class TaskResponse(BaseModel):
     priority: TaskPriority
     isOptional: bool
     status: TaskStatus
+    completionNotes: Optional[str] = None
     createdAt: datetime
     userId: PydanticObjectId = Field(..., validation_alias="user_id")
 
