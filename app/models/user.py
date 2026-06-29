@@ -1,8 +1,10 @@
 from datetime import datetime
 from typing import Optional
+
 from beanie import Document, Link
 from pydantic import Field
-from app.models.enums import UserRole, EmailType
+
+from app.models.enums import EmailType, UserRole
 from app.models.profile import Profile
 
 
@@ -20,7 +22,9 @@ class User(Document):
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
     profile: Optional[Link[Profile]] = Field(default=None, link_type="Profile.user")
-    email_settings: Optional[Link["EmailSetting"]] = Field(default=None, link_type="EmailSetting.user")
+    email_settings: Optional[Link["EmailSetting"]] = Field(
+        default=None, link_type="EmailSetting.user"
+    )
 
     class Settings:
         collection_name = "users"

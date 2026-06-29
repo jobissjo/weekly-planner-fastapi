@@ -1,12 +1,14 @@
 from typing import List
+
 from fastapi import APIRouter, Depends
-from app.core.permissions import only_admin, any_user_role
+
+from app.core.permissions import any_user_role, only_admin
 from app.models.user import User
 from app.schemas.common_schema import BaseResponse
 from app.schemas.motivation_schema import (
     MotivationCreateSchema,
-    MotivationUpdateSchema,
     MotivationResponse,
+    MotivationUpdateSchema,
 )
 from app.services.motivation_service import MotivationService
 
@@ -53,7 +55,9 @@ async def get_motivation(
     )
 
 
-@router.patch("/admin/motivations/{id}", response_model=BaseResponse[MotivationResponse])
+@router.patch(
+    "/admin/motivations/{id}", response_model=BaseResponse[MotivationResponse]
+)
 async def update_motivation(
     id: str,
     data: MotivationUpdateSchema,

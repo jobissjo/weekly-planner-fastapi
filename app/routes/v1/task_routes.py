@@ -1,13 +1,15 @@
 from typing import List, Optional
+
 from fastapi import APIRouter, Depends, Query
+
 from app.core.permissions import any_user_role, only_admin
-from app.models.user import User
 from app.models.task import Task
+from app.models.user import User
 from app.schemas.common_schema import BaseResponse
 from app.schemas.task_schema import (
     TaskCreateSchema,
-    TaskUpdateSchema,
     TaskResponse,
+    TaskUpdateSchema,
 )
 from app.services.task_service import TaskService
 

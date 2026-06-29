@@ -1,14 +1,16 @@
 from typing import List, Optional
+
 from fastapi import APIRouter, Depends, Query
-from app.core.permissions import only_admin, any_user_role
+
+from app.core.permissions import any_user_role, only_admin
 from app.models.user import User
 from app.schemas.common_schema import BaseResponse
 from app.schemas.streak_schema import (
-    StreakRuleCreateSchema,
-    StreakRuleUpdateSchema,
-    StreakRuleResponse,
-    UserStreakResponse,
     StreakDayStatus,
+    StreakRuleCreateSchema,
+    StreakRuleResponse,
+    StreakRuleUpdateSchema,
+    UserStreakResponse,
 )
 from app.services.streak_service import StreakService
 
@@ -17,6 +19,7 @@ streak_service = StreakService()
 
 
 # --- Admin StreakRule CRUD Endpoints ---
+
 
 @router.post("/admin/streak-rules", response_model=BaseResponse[StreakRuleResponse])
 async def create_streak_rule(
@@ -31,7 +34,9 @@ async def create_streak_rule(
     )
 
 
-@router.get("/admin/streak-rules", response_model=BaseResponse[List[StreakRuleResponse]])
+@router.get(
+    "/admin/streak-rules", response_model=BaseResponse[List[StreakRuleResponse]]
+)
 async def list_streak_rules(
     admin_user: User = Depends(only_admin),
 ):
@@ -56,7 +61,9 @@ async def get_streak_rule(
     )
 
 
-@router.patch("/admin/streak-rules/{id}", response_model=BaseResponse[StreakRuleResponse])
+@router.patch(
+    "/admin/streak-rules/{id}", response_model=BaseResponse[StreakRuleResponse]
+)
 async def update_streak_rule(
     id: str,
     data: StreakRuleUpdateSchema,
@@ -85,6 +92,7 @@ async def delete_streak_rule(
 
 # --- User Streak Endpoints ---
 
+
 @router.get("/user/streak", response_model=BaseResponse[UserStreakResponse])
 async def get_user_streak(
     today: str = Query(..., pattern=r"^\d{4}-\d{2}-\d{2}$"),
@@ -104,7 +112,9 @@ async def get_streak_history(
     end_date: Optional[str] = Query(None, pattern=r"^\d{4}-\d{2}-\d{2}$"),
     current_user: User = Depends(any_user_role),
 ):
-    history = await streak_service.get_streak_history(current_user.id, start_date, end_date)
+    history = await streak_service.get_streak_history(
+        current_user.id, start_date, end_date
+    )
     return BaseResponse(
         status="success",
         message="Streak history retrieved successfully",

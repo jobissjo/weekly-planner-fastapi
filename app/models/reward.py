@@ -1,11 +1,14 @@
 from datetime import datetime
 from typing import Optional
+
 from beanie import Document, PydanticObjectId
 from pydantic import Field
 
 
 class Reward(Document):
-    user_id: Optional[PydanticObjectId] = Field(default=None, index=True)  # None means generic reward suggested by system
+    user_id: Optional[PydanticObjectId] = Field(
+        default=None, index=True
+    )  # None means generic reward suggested by system
     title: str = Field(..., max_length=100)
     description: Optional[str] = Field(default=None, max_length=255)
     is_favorite: bool = False  # Whether this is the active reward selected for the week

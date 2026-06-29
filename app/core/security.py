@@ -1,16 +1,17 @@
-from passlib.context import CryptContext
 import asyncio
-from fastapi.security import OAuth2PasswordBearer
-from fastapi import Depends
-from typing import Optional
-from app.utils.common import CustomException
 from datetime import datetime, timedelta, timezone
+from typing import Optional
+
+import bcrypt
 import jwt
+from fastapi import Depends
+from fastapi.security import OAuth2PasswordBearer
+from passlib.context import CryptContext
+
 from app.core.settings import setting
 from app.models import User
 from app.repositories import UserRepository
-import bcrypt
-
+from app.utils.common import CustomException
 
 pwd_content = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token")
@@ -18,18 +19,14 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token")
 
 async def hash_password(password: str) -> str:
     def hashing(password: str) -> str:
-        return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode(
-            "utf-8"
-        )
+        return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
     return await asyncio.to_thread(hashing, password)
 
 
 async def verify_password(password: str, hashed_password: str) -> bool:
     def verify(password: str, hashed_password: str) -> bool:
-        return bcrypt.checkpw(
-            password.encode("utf-8"), hashed_password.encode("utf-8")
-        )
+        return bcrypt.checkpw(password.encode("utf-8"), hashed_password.encode("utf-8"))
 
     return await asyncio.to_thread(verify, password, hashed_password)
 
@@ -50,16 +47,19 @@ async def create_refresh_token(
     data: dict, expires_delta: Optional[timedelta] = None
 ) -> str:
     to_encode = data.copy()
-    
+
     expire = datetime.now(timezone.utc) + (expires_delta or timedelta(days=7))
-    to_encode.update({
-        "exp": expire,
-        "token_type": "refresh"  # you can differentiate token types if needed
-    })
-    
+    to_encode.update(
+        {
+            "exp": expire,
+            "token_type": "refresh",  # you can differentiate token types if needed
+        }
+    )
+
     return await asyncio.to_thread(
         jwt.encode, to_encode, setting.SECRET_KEY, algorithm=setting.ALGORITHM
     )
+
 
 async def verify_refresh_token(token: str) -> dict:
     try:
@@ -80,7 +80,7 @@ async def verify_refresh_token(token: str) -> dict:
 
 async def verify_token_get_user(
     token: str = Depends(oauth2_scheme),
-)->User:
+) -> User:
     try:
         payload = await asyncio.to_thread(
             jwt.decode, token, setting.SECRET_KEY, algorithms=[setting.ALGORITHM]
@@ -90,9 +90,9 @@ async def verify_token_get_user(
         user_id: str = payload.get("user_id")
         if user_id is None:
             raise CustomException("Token is missing user id", status_code=401)
-        
+
         return await UserRepository.get_user_by_id(user_id)
-    
+
     except jwt.ExpiredSignatureError:
         raise CustomException("Token has expired", status_code=401)
     except jwt.PyJWTError as e:

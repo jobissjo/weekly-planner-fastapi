@@ -1,17 +1,16 @@
 from typing import List, Optional
+
+from beanie import PydanticObjectId
+
+from app.core.logger_config import logger as default_logger
 from app.models.task import Task
 from app.repositories.task_repository import TaskRepository
 from app.schemas.task_schema import TaskCreateSchema, TaskUpdateSchema
-from app.utils.common import CustomException
-from beanie import PydanticObjectId
-from app.core.logger_config import logger as default_logger
-
-
 from app.services.streak_service import StreakService
+from app.utils.common import CustomException
 
 
 class TaskService:
-
     def __init__(self, logger=None):
         self.logger = logger or default_logger
         self.streak_service = StreakService()
@@ -21,7 +20,9 @@ class TaskService:
     ) -> Task:
         task = await TaskRepository.create_task(user_id, schema)
         if task.status == "completed":
-            await self.streak_service.update_streak_on_task_status_change(user_id, task.date, True)
+            await self.streak_service.update_streak_on_task_status_change(
+                user_id, task.date, True
+            )
         return task
 
     async def get_task_by_id(self, task_id: str, user_id: PydanticObjectId) -> Task:
@@ -54,7 +55,11 @@ class TaskService:
         updated_task = await TaskRepository.update_task(task_id, user_id, schema)
 
         # Trigger streak recalculation if completed status or date changes
-        if old_status == "completed" or updated_task.status == "completed" or old_date != updated_task.date:
+        if (
+            old_status == "completed"
+            or updated_task.status == "completed"
+            or old_date != updated_task.date
+        ):
             await self.streak_service.recalculate_user_streak(user_id)
 
         return updated_task
@@ -73,6 +78,7 @@ class TaskService:
         if old_status == "completed":
             await self.streak_service.recalculate_user_streak(user_id)
 
-    async def get_tasks_by_title(self, title: str, user_id: PydanticObjectId) -> List[Task]:
+    async def get_tasks_by_title(
+        self, title: str, user_id: PydanticObjectId
+    ) -> List[Task]:
         return await TaskRepository.get_tasks_by_title(title, user_id)
-

@@ -1,11 +1,11 @@
 import asyncio
+
 from app.core.db_config import init_db
-from app.models.user import User
+from app.core.security import hash_password
 from app.models.profile import Profile
+from app.models.user import User
 from app.repositories.user_repository import UserRepository
 from app.services.user_service import UserService
-from app.core.security import hash_password
-from beanie import PydanticObjectId
 
 
 async def main():

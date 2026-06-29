@@ -1,12 +1,12 @@
 from fastapi import Request
-from fastapi.responses import JSONResponse
-
-from app.utils.common import CustomException
-from app.core.logger_config import logger
-from starlette.exceptions import HTTPException as StarletteHTTPException
-from fastapi.exceptions import RequestValidationError
-from starlette.status import HTTP_422_UNPROCESSABLE_CONTENT
 from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
+from starlette.status import HTTP_422_UNPROCESSABLE_CONTENT
+
+from app.core.logger_config import logger
+from app.utils.common import CustomException
 
 
 async def custom_exception_handler(request: Request, exc: CustomException):

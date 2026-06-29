@@ -1,17 +1,18 @@
-from datetime import datetime, timedelta, date
+from datetime import date, datetime, timedelta
 from typing import List, Optional
+
 from beanie import PydanticObjectId
-from app.models.streak import StreakRule, UserStreak, StreakRewardHistory
-from app.models.task import Task
+
+from app.core.logger_config import logger as default_logger
 from app.models.enums import TaskStatus
+from app.models.streak import StreakRewardHistory, StreakRule, UserStreak
+from app.models.task import Task
 from app.repositories.streak_repository import StreakRepository
 from app.schemas.streak_schema import StreakRuleCreateSchema, StreakRuleUpdateSchema
 from app.utils.common import CustomException
-from app.core.logger_config import logger as default_logger
 
 
 class StreakService:
-
     def __init__(self, logger=None):
         self.logger = logger or default_logger
 
@@ -86,7 +87,9 @@ class StreakService:
 
         # Parse dates to calculate missed days
         try:
-            last_date = datetime.strptime(user_streak.last_completed_date, "%Y-%m-%d").date()
+            last_date = datetime.strptime(
+                user_streak.last_completed_date, "%Y-%m-%d"
+            ).date()
             current_date = datetime.strptime(today_str, "%Y-%m-%d").date()
         except Exception:
             return user_streak
@@ -205,22 +208,14 @@ class StreakService:
     async def update_streak_on_task_status_change(
         self, user_id: PydanticObjectId, task_date: str, is_completed: bool
     ) -> None:
-        # Check if the user has other completed tasks on this date
-        completed_tasks_on_date = await Task.find(
-            Task.user_id == user_id,
-            Task.date == task_date,
-            Task.status == TaskStatus.COMPLETED,
-        ).to_list()
-
-        # If it was completed, and now we are marking it as completed again or there are other completed tasks:
-        # Or if it was marked as not completed, but there are still other completed tasks on the same day:
-        # In both cases, the day's completion status remains unchanged.
-        # We only need to trigger recalculation if the completed-day status of this date changes.
-        # So we recalculate to keep things simple and perfectly correct.
+        # We recalculate to keep things simple and perfectly correct.
         await self.recalculate_user_streak(user_id)
 
     async def get_streak_history(
-        self, user_id: PydanticObjectId, start_date_str: Optional[str] = None, end_date_str: Optional[str] = None
+        self,
+        user_id: PydanticObjectId,
+        start_date_str: Optional[str] = None,
+        end_date_str: Optional[str] = None,
     ) -> List[dict]:
         # 1. Fetch unique sorted completed task dates
         completed_tasks = await Task.find(
@@ -254,7 +249,9 @@ class StreakService:
         sim_start = start_date
         if completed_dates:
             try:
-                first_completed = datetime.strptime(completed_dates[0], "%Y-%m-%d").date()
+                first_completed = datetime.strptime(
+                    completed_dates[0], "%Y-%m-%d"
+                ).date()
                 if first_completed < sim_start:
                     sim_start = first_completed
             except Exception:
@@ -280,7 +277,7 @@ class StreakService:
                     diff = (curr - last_completed_date).days
                     if diff == 1:
                         current_streak += 1
-                
+
                 last_completed_date = curr
 
                 # Check and grant freezes
@@ -314,10 +311,7 @@ class StreakService:
         while curr <= end_date:
             date_str = curr.strftime("%Y-%m-%d")
             status = all_day_statuses.get(date_str, "empty")
-            result.append({
-                "date": date_str,
-                "status": status
-            })
+            result.append({"date": date_str, "status": status})
             curr += timedelta(days=1)
 
         return result

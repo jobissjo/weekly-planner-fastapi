@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import Optional
+
 from beanie import PydanticObjectId
 from pydantic import BaseModel, Field
 

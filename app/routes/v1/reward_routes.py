@@ -1,5 +1,7 @@
 from typing import List
+
 from fastapi import APIRouter, Depends
+
 from app.core.permissions import any_user_role
 from app.models.user import User
 from app.schemas.common_schema import BaseResponse

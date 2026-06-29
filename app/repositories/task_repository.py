@@ -1,11 +1,12 @@
 from typing import List, Optional
+
+from beanie import PydanticObjectId
+
 from app.models.task import Task
 from app.schemas.task_schema import TaskCreateSchema, TaskUpdateSchema
-from beanie import PydanticObjectId
 
 
 class TaskRepository:
-
     @staticmethod
     async def create_task(user_id: PydanticObjectId, schema: TaskCreateSchema) -> Task:
         task_data = schema.model_dump()
@@ -15,9 +16,7 @@ class TaskRepository:
         return task
 
     @staticmethod
-    async def get_task_by_id(
-        task_id: str, user_id: PydanticObjectId
-    ) -> Optional[Task]:
+    async def get_task_by_id(task_id: str, user_id: PydanticObjectId) -> Optional[Task]:
         try:
             return await Task.find_one(
                 Task.id == PydanticObjectId(task_id), Task.user_id == user_id
@@ -66,13 +65,8 @@ class TaskRepository:
         return True
 
     @staticmethod
-    async def get_tasks_by_title(
-        title: str, user_id: PydanticObjectId
-    ) -> List[Task]:
+    async def get_tasks_by_title(title: str, user_id: PydanticObjectId) -> List[Task]:
         import re
-        regx = re.compile(rf".*{re.escape(title)}.*", re.IGNORECASE)
-        return await Task.find(
-            Task.user_id == user_id,
-            {"title": regx}
-        ).to_list()
 
+        regx = re.compile(rf".*{re.escape(title)}.*", re.IGNORECASE)
+        return await Task.find(Task.user_id == user_id, {"title": regx}).to_list()

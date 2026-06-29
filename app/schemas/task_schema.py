@@ -1,7 +1,9 @@
 from datetime import datetime
 from typing import Optional
+
 from beanie import PydanticObjectId
 from pydantic import BaseModel, Field
+
 from app.models.enums import TaskPriority, TaskStatus
 
 
@@ -43,6 +45,4 @@ class TaskResponse(BaseModel):
     createdAt: datetime
     userId: PydanticObjectId = Field(..., validation_alias="user_id")
 
-    model_config = {
-        "from_attributes": True
-    }
+    model_config = {"from_attributes": True}
