@@ -2,10 +2,11 @@ from typing import List, Optional
 
 from beanie import PydanticObjectId
 
+from app.core.events import event_manager
 from app.core.logger_config import logger as default_logger
 from app.models.task import Task
 from app.repositories.task_repository import TaskRepository
-from app.schemas.task_schema import TaskCreateSchema, TaskUpdateSchema
+from app.schemas.task_schema import TaskCreateSchema, TaskResponse, TaskUpdateSchema
 from app.services.streak_service import StreakService
 from app.utils.common import CustomException
 
@@ -26,8 +27,6 @@ class TaskService:
                 user_id, task.date, True
             )
         try:
-            from app.schemas.task_schema import TaskResponse
-            from app.core.events import event_manager
             task_data = TaskResponse.model_validate(task).model_dump(mode="json")
             await event_manager.publish(str(user_id), "task_created", task_data)
         except Exception as e:
@@ -87,8 +86,6 @@ class TaskService:
             await self.streak_service.recalculate_user_streak(user_id)
 
         try:
-            from app.schemas.task_schema import TaskResponse
-            from app.core.events import event_manager
             task_data = TaskResponse.model_validate(updated_task).model_dump(mode="json")
             await event_manager.publish(str(user_id), "task_updated", task_data)
         except Exception as e:

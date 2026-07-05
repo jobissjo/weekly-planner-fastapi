@@ -36,6 +36,7 @@ async def list_tasks(
     end_date: Optional[str] = Query(None, pattern=r"^\d{4}-\d{2}-\d{2}$"),
     current_user: User = Depends(any_user_role),
 ):
+
     tasks = await task_service.list_tasks(current_user.id, from_date, end_date)
     data = [TaskResponse.model_validate(t) for t in tasks]
     return BaseResponse(
@@ -106,12 +107,14 @@ async def tasks_events(token: str = Query(...)):
     """
     import asyncio
     import json
+
     import jwt
     from fastapi.responses import StreamingResponse
+
+    from app.core.events import event_manager
     from app.core.settings import setting
     from app.repositories import UserRepository
     from app.utils.common import CustomException
-    from app.core.events import event_manager
 
     try:
         payload = jwt.decode(
@@ -134,7 +137,7 @@ async def tasks_events(token: str = Query(...)):
         try:
             # Yield connection verification ping
             yield f"event: ping\ndata: {json.dumps({'status': 'connected'})}\n\n"
-            
+
             while True:
                 # Keep connection alive with a periodic ping if there are no events
                 try:
@@ -147,7 +150,7 @@ async def tasks_events(token: str = Query(...)):
             # Unsubscribe user when client disconnects
             event_manager.unsubscribe(user_id_str, queue)
             raise
-        except Exception as e:
+        except Exception:
             event_manager.unsubscribe(user_id_str, queue)
             raise
 

@@ -68,8 +68,8 @@ async def verify_refresh_token(token: str) -> dict:
         )
         if payload.get("token_type") != "refresh":
             raise CustomException("Invalid token type", status_code=401)
-        user_id: int = payload.get("user_id")
-        if user_id is None:
+        user_id: str | None = payload.get("user_id")
+        if not user_id:
             raise CustomException("Token is missing user id", status_code=401)
         return payload
     except jwt.ExpiredSignatureError:
@@ -87,8 +87,8 @@ async def verify_token_get_user(
         )
         if payload.get("token_type") != "access":
             raise CustomException("Invalid token type", status_code=401)
-        user_id: str = payload.get("user_id")
-        if user_id is None:
+        user_id: str | None = payload.get("user_id")
+        if not user_id:
             raise CustomException("Token is missing user id", status_code=401)
 
         return await UserRepository.get_user_by_id(user_id)
