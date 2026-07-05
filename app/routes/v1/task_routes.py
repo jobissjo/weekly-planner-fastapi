@@ -117,9 +117,7 @@ async def tasks_events(token: str = Query(...)):
     from app.utils.common import CustomException
 
     try:
-        payload = jwt.decode(
-            token, setting.SECRET_KEY, algorithms=[setting.ALGORITHM]
-        )
+        payload = jwt.decode(token, setting.SECRET_KEY, algorithms=[setting.ALGORITHM])
         if payload.get("token_type") != "access":
             raise CustomException("Invalid token type", status_code=401)
         user_id = payload.get("user_id")
@@ -161,5 +159,5 @@ async def tasks_events(token: str = Query(...)):
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
             "X-Accel-Buffering": "no",  # Disable buffering for Nginx/reverse proxies
-        }
+        },
     )

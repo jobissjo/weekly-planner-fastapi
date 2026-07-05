@@ -86,7 +86,9 @@ class TaskService:
             await self.streak_service.recalculate_user_streak(user_id)
 
         try:
-            task_data = TaskResponse.model_validate(updated_task).model_dump(mode="json")
+            task_data = TaskResponse.model_validate(updated_task).model_dump(
+                mode="json"
+            )
             await event_manager.publish(str(user_id), "task_updated", task_data)
         except Exception as e:
             self.logger.error(f"Failed to publish task_updated event: {e}")
@@ -109,6 +111,7 @@ class TaskService:
 
         try:
             from app.core.events import event_manager
+
             await event_manager.publish(str(user_id), "task_deleted", {"id": task_id})
         except Exception as e:
             self.logger.error(f"Failed to publish task_deleted event: {e}")

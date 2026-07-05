@@ -7,7 +7,6 @@ logger = logging.getLogger(__name__)
 
 
 class EventManager:
-
     def __init__(self):
         # Maps user_id str -> Set of asyncio.Queue
         self.listeners: Dict[str, Set[asyncio.Queue]] = {}
