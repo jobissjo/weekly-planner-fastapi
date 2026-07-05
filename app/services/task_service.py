@@ -18,11 +18,20 @@ class TaskService:
     async def create_task(
         self, user_id: PydanticObjectId, schema: TaskCreateSchema
     ) -> Task:
+        if schema.status == "completed" and not schema.completedDate:
+            schema.completedDate = schema.date
         task = await TaskRepository.create_task(user_id, schema)
         if task.status == "completed":
             await self.streak_service.update_streak_on_task_status_change(
                 user_id, task.date, True
             )
+        try:
+            from app.schemas.task_schema import TaskResponse
+            from app.core.events import event_manager
+            task_data = TaskResponse.model_validate(task).model_dump(mode="json")
+            await event_manager.publish(str(user_id), "task_created", task_data)
+        except Exception as e:
+            self.logger.error(f"Failed to publish task_created event: {e}")
         return task
 
     async def get_task_by_id(self, task_id: str, user_id: PydanticObjectId) -> Task:
@@ -52,7 +61,22 @@ class TaskService:
         old_status = task.status
         old_date = task.date
 
+        target_status = schema.status if schema.status is not None else task.status
+        target_date = schema.date if schema.date is not None else task.date
+
+        if target_status == "completed":
+            if schema.completedDate is not None:
+                pass
+            elif getattr(task, "completedDate", None) is None:
+                schema.completedDate = target_date
+        else:
+            if schema.status is not None:
+                schema.completedDate = None
+
         updated_task = await TaskRepository.update_task(task_id, user_id, schema)
+
+        if not updated_task:
+            raise CustomException("Task not found", status_code=404)
 
         # Trigger streak recalculation if completed status or date changes
         if (
@@ -61,6 +85,14 @@ class TaskService:
             or old_date != updated_task.date
         ):
             await self.streak_service.recalculate_user_streak(user_id)
+
+        try:
+            from app.schemas.task_schema import TaskResponse
+            from app.core.events import event_manager
+            task_data = TaskResponse.model_validate(updated_task).model_dump(mode="json")
+            await event_manager.publish(str(user_id), "task_updated", task_data)
+        except Exception as e:
+            self.logger.error(f"Failed to publish task_updated event: {e}")
 
         return updated_task
 
@@ -77,6 +109,12 @@ class TaskService:
 
         if old_status == "completed":
             await self.streak_service.recalculate_user_streak(user_id)
+
+        try:
+            from app.core.events import event_manager
+            await event_manager.publish(str(user_id), "task_deleted", {"id": task_id})
+        except Exception as e:
+            self.logger.error(f"Failed to publish task_deleted event: {e}")
 
     async def get_tasks_by_title(
         self, title: str, user_id: PydanticObjectId

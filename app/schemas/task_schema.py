@@ -17,6 +17,7 @@ class TaskCreateSchema(BaseModel):
     isOptional: bool = False
     status: TaskStatus = TaskStatus.PENDING
     completionNotes: Optional[str] = None
+    completedDate: Optional[str] = Field(None, pattern=r"^\d{4}-\d{2}-\d{2}$")
 
 
 class TaskUpdateSchema(BaseModel):
@@ -29,6 +30,7 @@ class TaskUpdateSchema(BaseModel):
     isOptional: Optional[bool] = None
     status: Optional[TaskStatus] = None
     completionNotes: Optional[str] = None
+    completedDate: Optional[str] = Field(None, pattern=r"^\d{4}-\d{2}-\d{2}$")
 
 
 class TaskResponse(BaseModel):
@@ -42,6 +44,7 @@ class TaskResponse(BaseModel):
     isOptional: bool
     status: TaskStatus
     completionNotes: Optional[str] = None
+    completedDate: Optional[str] = None
     createdAt: datetime
     userId: PydanticObjectId = Field(..., validation_alias="user_id")
 
