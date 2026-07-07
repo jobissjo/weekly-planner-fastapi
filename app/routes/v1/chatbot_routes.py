@@ -234,7 +234,9 @@ async def chat_with_bot(data: ChatQuery, current_user: User = Depends(any_user_r
                     f"Today's date is: {user_date} ({user_weekday}).\n"
                     "You can create tasks, list them, search for them, update them, and delete them. "
                     "You can only perform actions for the current user. "
-                    "For administration features, you must verify the user has the admin role via tools."
+                    "For administration features, you must verify the user has the admin role via tools.\n"
+                    "CRITICAL CONSTRAINT: Do NOT mention technical implementation details, internal function names (e.g. 'list_my_tasks', 'create_task', etc.), or tools you are using under the hood in your responses to the user. "
+                    "Always formulate your replies using natural, user-friendly language as a helpful personal assistant."
                 ),
             ),
             MessagesPlaceholder(variable_name="chat_history"),
