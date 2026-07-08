@@ -1,6 +1,7 @@
-from typing import Optional, List
-from pydantic_settings import BaseSettings
 from pathlib import Path
+from typing import List, Optional
+
+from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
@@ -11,7 +12,7 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7
 
     BASE_DIR: Path = Path(__file__).resolve().parent.parent
-    
+
     MONGODB_URL: Optional[str] = None
     GOOGLE_CLIENT_ID: Optional[str] = None
 
@@ -23,8 +24,6 @@ class Settings(BaseSettings):
     OPENAI_MODEL_NAME: str = "gpt-4o-mini"
     GEMINI_MODEL_NAME: str = "gemini-1.5-flash"
     GROQ_MODEL_NAME: str = "llama-3.3-70b-versatile"
-
-
 
     MEDIA_ROOT: Path = BASE_DIR / "media"
 
@@ -40,21 +39,23 @@ class Settings(BaseSettings):
 
     def model_post_init(self, __context) -> None:
         if self.ENV == "development" and not self.MONGODB_URL:
-            object.__setattr__(self, "MONGODB_URL", "mongodb://localhost:27017/weekly_planner")
+            object.__setattr__(
+                self, "MONGODB_URL", "mongodb://localhost:27017/weekly_planner"
+            )
         elif self.ENV == "production":
             if not self.DATABASE_URL:
-                raise ValueError("❌ In production mode, DATABASE_URL must be set in the environment.")
+                raise ValueError(
+                    "❌ In production mode, DATABASE_URL must be set in the environment."
+                )
             if not self.MONGODB_URL:
-                raise ValueError("❌ In production mode, MONGODB_URL must be set in the environment.")
-        
-    
-        
-        
-    
+                raise ValueError(
+                    "❌ In production mode, MONGODB_URL must be set in the environment."
+                )
 
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
         case_sensitive = True
+
 
 setting = Settings()

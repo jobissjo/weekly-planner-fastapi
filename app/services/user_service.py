@@ -1,11 +1,9 @@
 from datetime import datetime, timedelta, timezone
+
 import httpx
-from app.schemas import user_schema
-from app.models import User, TempUserOTP, Profile
-from app.models.enums import UserRole
-from app.schemas.common_schema import RefreshTokenBody
-from app.utils.common import CustomException
-from app.core.settings import setting
+from beanie import PydanticObjectId
+
+from app.core.logger_config import logger as default_logger
 from app.core.security import (
     create_access_token,
     create_refresh_token,
@@ -13,12 +11,17 @@ from app.core.security import (
     verify_password,
     verify_refresh_token,
 )
+from app.core.settings import setting
+from app.models import Profile, TempUserOTP, User
+from app.models.enums import UserRole
+from app.repositories import UserRepository
+from app.schemas import user_schema
+from app.schemas.common_schema import RefreshTokenBody
 
 # render_email_template, send_email
 from app.services.common_service import CommonService
 from app.services.email_service import EmailService
-from app.repositories import UserRepository
-from app.core.logger_config import logger as default_logger
+from app.utils.common import CustomException
 
 PROFILE_UPLOAD_FOLDER = "profile"
 
@@ -28,9 +31,7 @@ class UserService:
         self.email_service = email_service
         self.logger = logger or default_logger
 
-    async def register_user(
-        self, user_data: user_schema.RegisterSchema
-    ):
+    async def register_user(self, user_data: user_schema.RegisterSchema):
         otp = await self.get_user_otp(user_data.email)
         if otp.otp != user_data.otp:
             raise CustomException("Invalid OTP", 400)
@@ -60,15 +61,16 @@ class UserService:
 
         raise CustomException("A user with this username already exists.", 400)
 
-    async def login_user(
-        self, user_data: user_schema.LoginEmailSchema
-    ):
+    async def login_user(self, user_data: user_schema.LoginEmailSchema):
         existing_user = await UserRepository.get_user_by_email(user_data.email)
         if not existing_user:
             raise CustomException("email not exists", 400)
 
         if not existing_user.password:
-            raise CustomException("This account is configured for Google Sign-In. Please log in using Google.", 400)
+            raise CustomException(
+                "This account is configured for Google Sign-In. Please log in using Google.",
+                400,
+            )
 
         if not await verify_password(user_data.password, existing_user.password):
             raise CustomException("Invalid credentials.", 401)
@@ -81,12 +83,12 @@ class UserService:
             "refresh_token": refresh_token,
             "token_type": "Bearer",
             "role": existing_user.role,
-            'user':{
-                'email':existing_user.email,
-                'first_name':existing_user.first_name,
-                'last_name':existing_user.last_name,
-                'role':existing_user.role.value,
-            }
+            "user": {
+                "email": existing_user.email,
+                "first_name": existing_user.first_name,
+                "last_name": existing_user.last_name,
+                "role": existing_user.role.value,
+            },
         }
 
     async def login_or_register_google(self, credential_token: str):
@@ -95,12 +97,12 @@ class UserService:
                 resp = await client.get(
                     f"https://oauth2.googleapis.com/tokeninfo?id_token={credential_token}"
                 )
-            except Exception as e:
+            except Exception:
                 raise CustomException("Failed to verify token with Google API.", 400)
-            
+
             if resp.status_code != 200:
                 raise CustomException("Invalid Google token.", 400)
-            
+
             payload = resp.json()
 
         if setting.GOOGLE_CLIENT_ID and payload.get("aud") != setting.GOOGLE_CLIENT_ID:
@@ -110,7 +112,7 @@ class UserService:
         google_id = payload.get("sub")
         first_name = payload.get("given_name") or payload.get("name", "Google")
         last_name = payload.get("family_name") or "User"
-        
+
         if not email:
             raise CustomException("Email not provided by Google.", 400)
 
@@ -131,7 +133,7 @@ class UserService:
                 last_name=last_name,
                 role=UserRole.USER,
                 is_active=True,
-                google_id=google_id
+                google_id=google_id,
             )
             await existing_user.insert()
 
@@ -147,8 +149,10 @@ class UserService:
                 "email": existing_user.email,
                 "first_name": existing_user.first_name,
                 "last_name": existing_user.last_name,
-                "role": existing_user.role.value if hasattr(existing_user.role, "value") else str(existing_user.role),
-            }
+                "role": existing_user.role.value
+                if hasattr(existing_user.role, "value")
+                else str(existing_user.role),
+            },
         }
 
     async def verify_email(self, data: user_schema.EmailVerifySchema):
@@ -165,9 +169,7 @@ class UserService:
             use_admin_email=True,
         )
 
-    async def verify_email_otp(
-        self, data: user_schema.EmailVerifyOtpSchema
-    ):
+    async def verify_email_otp(self, data: user_schema.EmailVerifyOtpSchema):
         existing_user = await UserRepository.get_user_by_email(data.email)
         if existing_user and existing_user.is_active:
             raise CustomException("Email already exists", 400)
@@ -176,9 +178,7 @@ class UserService:
         if user_otp.otp != data.otp:
             raise CustomException("Invalid OTP", 400)
 
-    async def refresh_to_access_token(
-        self, token_data: RefreshTokenBody
-    ):
+    async def refresh_to_access_token(self, token_data: RefreshTokenBody):
         payload = await verify_refresh_token(token_data.refresh_token)
         user_id = payload.get("user_id")
 
@@ -202,7 +202,7 @@ class UserService:
                 "first_name": user.first_name,
                 "last_name": user.last_name,
                 "role": user.role.value,
-            }
+            },
         }
 
     # Delegated from OTP service:
@@ -277,6 +277,24 @@ class UserService:
         await UserRepository.update_notification_preferences(
             user_id, email_notifications, reminders
         )
+
+    async def register_push_token(self, user_id: str, push_token: str):
+        user = await User.get(PydanticObjectId(user_id))
+        if not user:
+            raise CustomException("User not found", 404)
+        if not getattr(user, "push_tokens", None):
+            user.push_tokens = []
+        if push_token not in user.push_tokens:
+            user.push_tokens.append(push_token)
+            await user.save()
+
+    async def unregister_push_token(self, user_id: str, push_token: str):
+        user = await User.get(PydanticObjectId(user_id))
+        if not user:
+            raise CustomException("User not found", 404)
+        if getattr(user, "push_tokens", None) and push_token in user.push_tokens:
+            user.push_tokens.remove(push_token)
+            await user.save()
 
 
 class TempUserOTPService:

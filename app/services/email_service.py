@@ -1,9 +1,11 @@
-from email.message import EmailMessage
-from typing import Union, Optional
-import aiosmtplib
 import ssl
-from app.models import User, EmailSetting
+from email.message import EmailMessage
+from typing import Optional, Union
+
+import aiosmtplib
+
 from app.core.logger_config import logger
+from app.models import EmailSetting, User
 from app.utils import render_email_template
 
 

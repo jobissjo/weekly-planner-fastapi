@@ -1,11 +1,12 @@
 import random
 from typing import List, Optional
-from app.models.motivation import Motivation
+
 from beanie import PydanticObjectId
+
+from app.models.motivation import Motivation
 
 
 class MotivationRepository:
-
     @staticmethod
     async def create_motivation(
         title: str, content: str, is_active: bool = True

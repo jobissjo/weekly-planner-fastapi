@@ -1,7 +1,9 @@
 from datetime import datetime
 from typing import Optional
+
 from beanie import Document, PydanticObjectId
 from pydantic import Field
+
 from app.models.enums import TaskPriority, TaskStatus
 
 
@@ -16,6 +18,7 @@ class Task(Document):
     isOptional: bool = False
     status: TaskStatus = TaskStatus.PENDING
     completionNotes: Optional[str] = None
+    completedDate: Optional[str] = None
     createdAt: datetime = Field(default_factory=datetime.utcnow)
 
     class Settings:

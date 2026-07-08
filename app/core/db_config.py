@@ -1,12 +1,13 @@
-from pymongo import AsyncMongoClient
 from beanie import init_beanie
+from pymongo import AsyncMongoClient
+
 from app.core.settings import setting
-from app.models.user import User, TempUserOTP, EmailSetting
-from app.models.profile import Profile
 from app.models.motivation import Motivation
-from app.models.task import Task
-from app.models.streak import StreakRule, UserStreak, StreakRewardHistory
+from app.models.profile import Profile
 from app.models.reward import Reward
+from app.models.streak import StreakRewardHistory, StreakRule, UserStreak
+from app.models.task import Task
+from app.models.user import EmailSetting, TempUserOTP, User
 
 
 async def init_db():
@@ -24,5 +25,5 @@ async def init_db():
             UserStreak,
             StreakRewardHistory,
             Reward,
-        ]
+        ],
     )

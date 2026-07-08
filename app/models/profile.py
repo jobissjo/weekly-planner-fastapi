@@ -1,14 +1,16 @@
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
+
 from beanie import Document, Link
 from pydantic import Field
-
 
 if TYPE_CHECKING:
     from app.models.user import User
 
 
 class Profile(Document):
-    user: Optional[Link["User"]] = Field(default=None, unique=True, link_type="User.profile")
+    user: Optional[Link["User"]] = Field(
+        default=None, unique=True, link_type="User.profile"
+    )
     bio: Optional[str] = Field(default=None, max_length=500)
     profile_picture_url: Optional[str] = Field(default=None, max_length=255)
     email_notifications: bool = True
@@ -19,5 +21,3 @@ class Profile(Document):
 
     def __repr__(self):
         return f"<Profile(id={self.id}, user={self.user})>"
-
-

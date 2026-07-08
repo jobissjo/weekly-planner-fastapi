@@ -1,11 +1,11 @@
 from typing import List, Optional
-from datetime import datetime
-from app.models.streak import StreakRule, UserStreak, StreakRewardHistory
+
 from beanie import PydanticObjectId
+
+from app.models.streak import StreakRewardHistory, StreakRule, UserStreak
 
 
 class StreakRepository:
-
     # --- StreakRule methods ---
 
     @staticmethod
@@ -78,10 +78,14 @@ class StreakRepository:
     # --- StreakRewardHistory methods ---
 
     @staticmethod
-    async def list_reward_history(user_id: PydanticObjectId) -> List[StreakRewardHistory]:
-        return await StreakRewardHistory.find(
-            StreakRewardHistory.user_id == user_id
-        ).sort("-created_at").to_list()
+    async def list_reward_history(
+        user_id: PydanticObjectId,
+    ) -> List[StreakRewardHistory]:
+        return (
+            await StreakRewardHistory.find(StreakRewardHistory.user_id == user_id)
+            .sort("-created_at")
+            .to_list()
+        )
 
     @staticmethod
     async def create_reward_history(

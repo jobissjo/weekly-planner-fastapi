@@ -1,7 +1,9 @@
-from pydantic import BaseModel, Field
-from fastapi import Form, File, UploadFile
-from app.models.enums import UserRole
 from typing import Optional
+
+from fastapi import File, Form, UploadFile
+from pydantic import BaseModel, Field
+
+from app.models.enums import UserRole
 
 
 class LoginEmailSchema(BaseModel):
@@ -44,8 +46,6 @@ class ProfileUpdateSchema(BaseModel):
     )
 
 
-
-
 class ProfileUpdateForm:
     def __init__(
         self,
@@ -65,3 +65,6 @@ class NotificationPreferenceSchema(BaseModel):
     email_notifications: bool
     reminders: bool
 
+
+class PushTokenSchema(BaseModel):
+    push_token: str

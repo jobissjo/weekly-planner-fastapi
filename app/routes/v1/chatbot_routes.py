@@ -1,40 +1,43 @@
 import os
 from typing import List, Optional
+
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel
-from app.core.permissions import any_user_role
-from app.models.user import User
-from app.schemas.common_schema import BaseResponse
+from langchain_classic.agents import AgentExecutor, create_tool_calling_agent
+from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
 # Langchain imports
 from langchain_core.tools import tool
-from langchain_core.messages import HumanMessage, AIMessage
-from langchain_classic.agents import AgentExecutor, create_tool_calling_agent
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_openai import ChatOpenAI
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_groq import ChatGroq
+from langchain_openai import ChatOpenAI
+from pydantic import BaseModel
+
+from app.core.permissions import any_user_role
 from app.core.settings import setting
+from app.models.user import User
+from app.schemas.common_schema import BaseResponse
 
 router = APIRouter(prefix="/chatbot", tags=["Chatbot"])
+
 
 class ChatMessage(BaseModel):
     role: str  # "user" or "assistant"
     content: str
+
 
 class ChatQuery(BaseModel):
     message: str
     chat_history: Optional[List[ChatMessage]] = None
     current_date: Optional[str] = None
 
+
 class ChatReply(BaseModel):
     reply: str
 
+
 @router.post("/chat", response_model=BaseResponse[ChatReply])
-async def chat_with_bot(
-    data: ChatQuery,
-    current_user: User = Depends(any_user_role)
-):
+async def chat_with_bot(data: ChatQuery, current_user: User = Depends(any_user_role)):
     """
     Chat with the Weekly Planner AI bot.
     Allows the user to manage their tasks in natural language.
@@ -48,42 +51,28 @@ async def chat_with_bot(
     llm = None
     if setting.LLM_PROVIDER == "google" and gemini_key:
         llm = ChatGoogleGenerativeAI(
-            model=setting.GEMINI_MODEL_NAME,
-            google_api_key=gemini_key,
-            temperature=0.3
+            model=setting.GEMINI_MODEL_NAME, google_api_key=gemini_key, temperature=0.3
         )
     elif setting.LLM_PROVIDER == "groq" and groq_key:
-        llm = ChatGroq(
-            model=setting.GROQ_MODEL_NAME,
-            api_key=groq_key,
-            temperature=0.3
-        )
+        llm = ChatGroq(model=setting.GROQ_MODEL_NAME, api_key=groq_key, temperature=0.3)
     elif openai_key:
         llm = ChatOpenAI(
-            model=setting.OPENAI_MODEL_NAME,
-            api_key=openai_key,
-            temperature=0.3
+            model=setting.OPENAI_MODEL_NAME, api_key=openai_key, temperature=0.3
         )
     elif gemini_key:
         llm = ChatGoogleGenerativeAI(
-            model=setting.GEMINI_MODEL_NAME,
-            google_api_key=gemini_key,
-            temperature=0.3
+            model=setting.GEMINI_MODEL_NAME, google_api_key=gemini_key, temperature=0.3
         )
     elif groq_key:
-        llm = ChatGroq(
-            model=setting.GROQ_MODEL_NAME,
-            api_key=groq_key,
-            temperature=0.3
-        )
-    
+        llm = ChatGroq(model=setting.GROQ_MODEL_NAME, api_key=groq_key, temperature=0.3)
+
     if not llm:
         return BaseResponse(
             status="error",
             message="No LLM API keys configured. Set OPENAI_API_KEY, GEMINI_API_KEY, or GROQ_API_KEY in .env.",
             data=ChatReply(
                 reply="I'm sorry, but my chatbot brain is offline. Please configure `OPENAI_API_KEY`, `GEMINI_API_KEY`, or `GROQ_API_KEY` in the server's `.env` file to activate me!"
-            )
+            ),
         )
 
     # 2. Build dynamic Langchain tools bound strictly to the current user
@@ -96,7 +85,7 @@ async def chat_with_bot(
         startTime: str,
         endTime: str,
         priority: str = "medium",
-        description: Optional[str] = None
+        description: Optional[str] = None,
     ) -> str:
         """
         Create a new task for the current user.
@@ -114,20 +103,21 @@ async def chat_with_bot(
             startTime=startTime,
             endTime=endTime,
             priority=priority,
-            description=description
+            description=description,
         )
 
     @tool
     async def list_my_tasks(
-        from_date: Optional[str] = None,
-        end_date: Optional[str] = None
+        from_date: Optional[str] = None, end_date: Optional[str] = None
     ) -> str:
         """
         List tasks belonging to the current user.
         - from_date: Optional filter in YYYY-MM-DD format
         - end_date: Optional filter in YYYY-MM-DD format
         """
-        return await mcp_tools.list_my_tasks_tool(user=current_user, from_date=from_date, end_date=end_date)
+        return await mcp_tools.list_my_tasks_tool(
+            user=current_user, from_date=from_date, end_date=end_date
+        )
 
     @tool
     async def get_task_by_title(title: str) -> str:
@@ -146,7 +136,7 @@ async def chat_with_bot(
         endTime: Optional[str] = None,
         priority: Optional[str] = None,
         status: Optional[str] = None,
-        description: Optional[str] = None
+        description: Optional[str] = None,
     ) -> str:
         """
         Update details of a task belonging to the current user.
@@ -168,7 +158,7 @@ async def chat_with_bot(
             endTime=endTime,
             priority=priority,
             status=status,
-            description=description
+            description=description,
         )
 
     @tool
@@ -183,7 +173,9 @@ async def chat_with_bot(
 
     # 3. Add admin tools if the caller has admin permissions
     from app.models.enums import UserRole
+
     if current_user.role == UserRole.ADMIN or current_user.is_superuser:
+
         @tool
         async def admin_list_all_tasks() -> str:
             """
@@ -197,7 +189,9 @@ async def chat_with_bot(
             [ADMIN ONLY] Search for users in the system by name or email.
             - name: Query string (name or email fragment)
             """
-            return await mcp_tools.admin_get_users_by_name_tool(user=current_user, name=name)
+            return await mcp_tools.admin_get_users_by_name_tool(
+                user=current_user, name=name
+            )
 
         tools.extend([admin_list_all_tasks, admin_get_users_by_name])
 
@@ -212,9 +206,12 @@ async def chat_with_bot(
 
     # Resolve date context (fallback to server local time if not provided by frontend)
     import datetime
+
     try:
         if data.current_date:
-            parsed_date = datetime.datetime.strptime(data.current_date, "%Y-%m-%d").date()
+            parsed_date = datetime.datetime.strptime(
+                data.current_date, "%Y-%m-%d"
+            ).date()
         else:
             parsed_date = datetime.date.today()
         user_date = parsed_date.isoformat()
@@ -225,35 +222,41 @@ async def chat_with_bot(
         user_weekday = parsed_date.strftime("%A")
 
     # 5. Build and execute agent prompt
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", (
-            "You are an intelligent weekly planner chatbot. You help the user manage their tasks.\n"
-            f"The current user's email is: {current_user.email}.\n"
-            f"The current user's name is: {current_user.first_name} {current_user.last_name}.\n"
-            f"The current user's role is: {current_user.role.value}.\n"
-            f"Today's date is: {user_date} ({user_weekday}).\n"
-            "You can create tasks, list them, search for them, update them, and delete them. "
-            "You can only perform actions for the current user. "
-            "For administration features, you must verify the user has the admin role via tools."
-        )),
-        MessagesPlaceholder(variable_name="chat_history"),
-        ("human", "{input}"),
-        MessagesPlaceholder(variable_name="agent_scratchpad"),
-    ])
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            (
+                "system",
+                (
+                    "You are an intelligent weekly planner chatbot. You help the user manage their tasks.\n"
+                    f"The current user's email is: {current_user.email}.\n"
+                    f"The current user's name is: {current_user.first_name} {current_user.last_name}.\n"
+                    f"The current user's role is: {current_user.role.value}.\n"
+                    f"Today's date is: {user_date} ({user_weekday}).\n"
+                    "You can create tasks, list them, search for them, update them, and delete them. "
+                    "You can only perform actions for the current user. "
+                    "For administration features, you must verify the user has the admin role via tools.\n"
+                    "CRITICAL CONSTRAINT: Do NOT mention technical implementation details, internal function names (e.g. 'list_my_tasks', 'create_task', etc.), or tools you are using under the hood in your responses to the user. "
+                    "Always formulate your replies using natural, user-friendly language as a helpful personal assistant."
+                ),
+            ),
+            MessagesPlaceholder(variable_name="chat_history"),
+            ("human", "{input}"),
+            MessagesPlaceholder(variable_name="agent_scratchpad"),
+        ]
+    )
 
     agent = create_tool_calling_agent(llm, tools, prompt)
     agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 
     try:
-        response = await agent_executor.ainvoke({
-            "input": data.message,
-            "chat_history": formatted_history
-        })
+        response = await agent_executor.ainvoke(
+            {"input": data.message, "chat_history": formatted_history}
+        )
         reply_content = response.get("output", "No response generated.")
         return BaseResponse(
             status="success",
             message="Chat message processed successfully",
-            data=ChatReply(reply=reply_content)
+            data=ChatReply(reply=reply_content),
         )
     except Exception as e:
         return BaseResponse(
@@ -261,5 +264,5 @@ async def chat_with_bot(
             message=f"Error executing chatbot agent: {str(e)}",
             data=ChatReply(
                 reply=f"An error occurred while processing your request: {str(e)}"
-            )
+            ),
         )

@@ -1,13 +1,13 @@
 from typing import List
+
+from app.core.logger_config import logger as default_logger
 from app.models.motivation import Motivation
 from app.repositories.motivation_repository import MotivationRepository
 from app.schemas.motivation_schema import MotivationCreateSchema, MotivationUpdateSchema
 from app.utils.common import CustomException
-from app.core.logger_config import logger as default_logger
 
 
 class MotivationService:
-
     def __init__(self, logger=None):
         self.logger = logger or default_logger
 

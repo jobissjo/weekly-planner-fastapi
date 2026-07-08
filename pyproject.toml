@@ -1,0 +1,38 @@
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "C90", # mccabe complexity
+]
+ignore = [
+    "E712", # Avoid equality comparisons to True (required for Beanie query expressions)
+    "E501", # Line too long (handled by formatter, don't fail build)
+    "C901", # McCabe complexity (don't fail build on complex functions)
+]
+
+[tool.mypy]
+python_version = "3.12"
+strict = false
+ignore_missing_imports = true
+exclude = [
+    "^venv/",
+    "^\\.git/",
+    "^__pycache__/",
+]
+
+[[tool.mypy.overrides]]
+module = [
+    "app.services.*",
+    "app.repositories.*",
+    "app.routes.*",
+    "app.core.*",
+    "app.main",
+    "app.models.*",
+]
+ignore_errors = true

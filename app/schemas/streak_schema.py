@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import Optional
+
 from beanie import PydanticObjectId
 from pydantic import BaseModel, Field
 
@@ -63,4 +64,3 @@ class StreakRewardHistoryResponse(BaseModel):
 class StreakDayStatus(BaseModel):
     date: str
     status: str
-

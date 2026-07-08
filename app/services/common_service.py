@@ -1,15 +1,15 @@
-import aiofiles
 import base64
 import uuid
 from pathlib import Path
 
+import aiofiles
 from fastapi import UploadFile
+
 from app.core.settings import setting
 from app.utils.common import CustomException
 
 
 class CommonService:
-
     @staticmethod
     def generate_secure_filename(original_name: str) -> str:
         """
@@ -18,13 +18,10 @@ class CommonService:
         path = Path(original_name)
         unique_suffix = uuid.uuid4().hex[:8]
         return f"{path.stem}_{unique_suffix}{path.suffix}"
-    
-    
+
     @staticmethod
     async def save_base64_file(
-        base64_str: str,
-        folder: str,
-        media_root: str =setting.MEDIA_ROOT
+        base64_str: str, folder: str, media_root: str = setting.MEDIA_ROOT
     ) -> str:
         """
         Save a base64-encoded file to the specified folder and filename.
@@ -40,11 +37,9 @@ class CommonService:
         else:
             filename = f"{uuid.uuid4().hex}.png"
 
-
         # Ensure folder exists
         folder_path = Path(media_root) / folder
         folder_path.mkdir(parents=True, exist_ok=True)
-        
 
         # Create full path
         file_path = folder_path / filename
@@ -60,12 +55,10 @@ class CommonService:
             return str(file_path)
         except Exception as e:
             raise CustomException(f"Failed to save file: {e}", status_code=500)
-    
+
     @staticmethod
     async def save_upload_file(
-        upload_file: UploadFile,
-        folder: str,
-        media_root: str = setting.MEDIA_ROOT
+        upload_file: UploadFile, folder: str, media_root: str = setting.MEDIA_ROOT
     ) -> str:
         """
         Save an UploadFile (multipart/form-data) to the specified folder.
