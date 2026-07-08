@@ -11,6 +11,7 @@ from app.schemas.user_schema import (
     NotificationPreferenceSchema,
     ProfileUpdateForm,
     ProfileUpdateSchema,
+    PushTokenSchema,
 )
 from app.services import EmailService, UserService
 
@@ -74,6 +75,28 @@ async def update_notification_preference(
         status="success",
         message="Notification preferences updated successfully",
         data=None,
+    )
+
+
+@router.post("/push-token", response_model=BaseResponse[None])
+async def register_push_token(
+    data: PushTokenSchema,
+    current_user: User = Depends(any_user_role),
+):
+    await user_service.register_push_token(str(current_user.id), data.push_token)
+    return BaseResponse(
+        status="success", message="Push token registered successfully", data=None
+    )
+
+
+@router.post("/push-token/unregister", response_model=BaseResponse[None])
+async def unregister_push_token(
+    data: PushTokenSchema,
+    current_user: User = Depends(any_user_role),
+):
+    await user_service.unregister_push_token(str(current_user.id), data.push_token)
+    return BaseResponse(
+        status="success", message="Push token unregistered successfully", data=None
     )
 
 

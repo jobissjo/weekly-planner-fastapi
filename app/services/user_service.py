@@ -11,6 +11,7 @@ from app.core.security import (
     verify_refresh_token,
 )
 from app.core.settings import setting
+from beanie import PydanticObjectId
 from app.models import Profile, TempUserOTP, User
 from app.models.enums import UserRole
 from app.repositories import UserRepository
@@ -276,6 +277,24 @@ class UserService:
         await UserRepository.update_notification_preferences(
             user_id, email_notifications, reminders
         )
+
+    async def register_push_token(self, user_id: str, push_token: str):
+        user = await User.get(PydanticObjectId(user_id))
+        if not user:
+            raise CustomException("User not found", 404)
+        if not getattr(user, "push_tokens", None):
+            user.push_tokens = []
+        if push_token not in user.push_tokens:
+            user.push_tokens.append(push_token)
+            await user.save()
+
+    async def unregister_push_token(self, user_id: str, push_token: str):
+        user = await User.get(PydanticObjectId(user_id))
+        if not user:
+            raise CustomException("User not found", 404)
+        if getattr(user, "push_tokens", None) and push_token in user.push_tokens:
+            user.push_tokens.remove(push_token)
+            await user.save()
 
 
 class TempUserOTPService:

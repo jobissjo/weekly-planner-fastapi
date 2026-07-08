@@ -64,3 +64,7 @@ class ChangePasswordSchema(BaseModel):
 class NotificationPreferenceSchema(BaseModel):
     email_notifications: bool
     reminders: bool
+
+
+class PushTokenSchema(BaseModel):
+    push_token: str

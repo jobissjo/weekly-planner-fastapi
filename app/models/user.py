@@ -25,6 +25,7 @@ class User(Document):
     email_settings: Optional[Link["EmailSetting"]] = Field(
         default=None, link_type="EmailSetting.user"
     )
+    push_tokens: list[str] = Field(default_factory=list)
 
     class Settings:
         collection_name = "users"
