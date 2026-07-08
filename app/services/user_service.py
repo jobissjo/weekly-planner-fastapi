@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta, timezone
 
 import httpx
+from beanie import PydanticObjectId
 
 from app.core.logger_config import logger as default_logger
 from app.core.security import (
@@ -11,7 +12,6 @@ from app.core.security import (
     verify_refresh_token,
 )
 from app.core.settings import setting
-from beanie import PydanticObjectId
 from app.models import Profile, TempUserOTP, User
 from app.models.enums import UserRole
 from app.repositories import UserRepository

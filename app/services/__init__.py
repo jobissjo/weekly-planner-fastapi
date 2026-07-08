@@ -1,10 +1,10 @@
 from app.services.common_service import CommonService
 from app.services.email_service import EmailService
 from app.services.motivation_service import MotivationService
+from app.services.notification_service import NotificationService
 from app.services.streak_service import StreakService
 from app.services.task_service import TaskService
 from app.services.user_service import TempUserOTPService, UserService
-from app.services.notification_service import NotificationService
 
 __all__ = [
     "UserService",

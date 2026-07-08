@@ -1,6 +1,9 @@
+from typing import Any, Dict, List
+
 import httpx
-from typing import List, Dict, Any
+
 from app.core.logger_config import logger as default_logger
+
 
 class NotificationService:
     def __init__(self, logger=None):
@@ -35,10 +38,14 @@ class NotificationService:
             try:
                 response = await client.post(url, json=payload)
                 if response.status_code == 200:
-                    self.logger.info(f"Expo notifications API response: {response.json()}")
+                    self.logger.info(
+                        f"Expo notifications API response: {response.json()}"
+                    )
                 else:
                     self.logger.error(
                         f"Failed to send notifications. Status: {response.status_code}, Body: {response.text}"
                     )
             except Exception as e:
-                self.logger.error(f"Exception while sending push notification to Expo: {e}")
+                self.logger.error(
+                    f"Exception while sending push notification to Expo: {e}"
+                )
