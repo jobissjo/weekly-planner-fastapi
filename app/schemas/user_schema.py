@@ -57,7 +57,7 @@ class ProfileUpdateForm:
 
 
 class ChangePasswordSchema(BaseModel):
-    old_password: str = Field(..., min_length=4)
+    old_password: Optional[str] = Field(None)
     new_password: str = Field(..., min_length=4)
 
 
