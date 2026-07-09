@@ -7,6 +7,7 @@ from app.models import User
 from app.models.streak import UserStreak
 from app.schemas.common_schema import BaseResponse
 from app.schemas.user_schema import (
+    AuthSettingsSchema,
     ChangePasswordSchema,
     NotificationPreferenceSchema,
     ProfileUpdateForm,
@@ -74,6 +75,21 @@ async def update_notification_preference(
     return BaseResponse(
         status="success",
         message="Notification preferences updated successfully",
+        data=None,
+    )
+
+
+@router.patch("/auth-settings", response_model=BaseResponse[None])
+async def update_auth_settings(
+    data: AuthSettingsSchema,
+    current_user: User = Depends(any_user_role),
+):
+    await user_service.update_auth_settings(
+        str(current_user.id), data.allow_password_login
+    )
+    return BaseResponse(
+        status="success",
+        message="Authentication settings updated successfully",
         data=None,
     )
 

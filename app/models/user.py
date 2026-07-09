@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Optional
 
 from beanie import Document, Link
-from pydantic import Field
+from pydantic import Field, computed_field
 
 from app.models.enums import EmailType, UserRole
 from app.models.profile import Profile
@@ -10,8 +10,9 @@ from app.models.profile import Profile
 
 class User(Document):
     email: str = Field(unique=True, index=True)
-    password: Optional[str] = None
+    password: Optional[str] = Field(default=None, exclude=True)
     google_id: Optional[str] = None
+    allow_password_login: bool = Field(default=True)
     is_active: bool = True
     is_superuser: bool = False
     first_name: str
@@ -20,6 +21,10 @@ class User(Document):
     is_deleted: bool = False
     created_at: datetime = Field(default_factory=datetime.utcnow, index=True)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+    @computed_field
+    def has_password(self) -> bool:
+        return self.password is not None
 
     profile: Optional[Link[Profile]] = Field(default=None, link_type="Profile.user")
     email_settings: Optional[Link["EmailSetting"]] = Field(
