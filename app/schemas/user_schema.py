@@ -68,3 +68,7 @@ class NotificationPreferenceSchema(BaseModel):
 
 class PushTokenSchema(BaseModel):
     push_token: str
+
+
+class AuthSettingsSchema(BaseModel):
+    allow_password_login: bool

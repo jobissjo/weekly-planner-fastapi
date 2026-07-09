@@ -66,7 +66,9 @@ class UserService:
         if not existing_user:
             raise CustomException("email not exists", 400)
 
-        if not existing_user.password:
+        if not existing_user.password or not getattr(
+            existing_user, "allow_password_login", True
+        ):
             raise CustomException(
                 "This account is configured for Google Sign-In. Please log in using Google.",
                 400,
@@ -88,6 +90,11 @@ class UserService:
                 "first_name": existing_user.first_name,
                 "last_name": existing_user.last_name,
                 "role": existing_user.role.value,
+                "google_id": existing_user.google_id,
+                "allow_password_login": getattr(
+                    existing_user, "allow_password_login", True
+                ),
+                "has_password": existing_user.password is not None,
             },
         }
 
@@ -134,6 +141,7 @@ class UserService:
                 role=UserRole.USER,
                 is_active=True,
                 google_id=google_id,
+                allow_password_login=False,
             )
             await existing_user.insert()
 
@@ -152,6 +160,11 @@ class UserService:
                 "role": existing_user.role.value
                 if hasattr(existing_user.role, "value")
                 else str(existing_user.role),
+                "google_id": existing_user.google_id,
+                "allow_password_login": getattr(
+                    existing_user, "allow_password_login", True
+                ),
+                "has_password": existing_user.password is not None,
             },
         }
 
@@ -202,6 +215,9 @@ class UserService:
                 "first_name": user.first_name,
                 "last_name": user.last_name,
                 "role": user.role.value,
+                "google_id": user.google_id,
+                "allow_password_login": getattr(user, "allow_password_login", True),
+                "has_password": user.password is not None,
             },
         }
 
@@ -265,10 +281,14 @@ class UserService:
         if not user:
             raise CustomException("User not found", 404)
 
-        if not await verify_password(old_password, user.password):
-            raise CustomException("Incorrect current password", 400)
+        if user.password:
+            if not old_password or not await verify_password(
+                old_password, user.password
+            ):
+                raise CustomException("Incorrect current password", 400)
 
         user.password = await hash_password(new_password)
+        user.allow_password_login = True
         await user.save()
 
     async def update_notification_preferences(
@@ -277,6 +297,20 @@ class UserService:
         await UserRepository.update_notification_preferences(
             user_id, email_notifications, reminders
         )
+
+    async def update_auth_settings(self, user_id: str, allow_password_login: bool):
+        user = await UserRepository.get_user_by_id(user_id)
+        if not user:
+            raise CustomException("User not found", 404)
+
+        if allow_password_login and not user.password:
+            raise CustomException(
+                "You must set a password before enabling email and password login.",
+                400,
+            )
+
+        user.allow_password_login = allow_password_login
+        await user.save()
 
     async def register_push_token(self, user_id: str, push_token: str):
         user = await User.get(PydanticObjectId(user_id))
