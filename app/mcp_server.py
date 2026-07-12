@@ -143,6 +143,8 @@ async def update_task(
     priority: Optional[str] = None,
     status: Optional[str] = None,
     description: Optional[str] = None,
+    completedDate: Optional[str] = None,
+    completionNotes: Optional[str] = None,
 ) -> str:
     """
     Update details of a task belonging to the authenticated user.
@@ -154,6 +156,8 @@ async def update_task(
     - priority: Optional new priority (high, medium, low)
     - status: Optional new status (pending, completed, skipped)
     - description: Optional new description
+    - completedDate: Optional date when the task was completed in YYYY-MM-DD format
+    - completionNotes: Optional notes or achievements about the task's completion
     """
     user = await get_mcp_user()
     return await mcp_tools.update_task_tool(
@@ -166,6 +170,29 @@ async def update_task(
         priority=priority,
         status=status,
         description=description,
+        completedDate=completedDate,
+        completionNotes=completionNotes,
+    )
+
+
+@mcp.tool()
+async def mark_task_completed(
+    task_id: str,
+    completedDate: Optional[str] = None,
+    completionNotes: Optional[str] = None,
+) -> str:
+    """
+    Mark a task belonging to the authenticated user as completed, optionally providing completion details.
+    - task_id: The ID of the task to complete
+    - completedDate: Optional date when the task was completed in YYYY-MM-DD format
+    - completionNotes: Optional notes, thoughts, or achievements about the task's completion
+    """
+    user = await get_mcp_user()
+    return await mcp_tools.mark_task_completed_tool(
+        user=user,
+        task_id=task_id,
+        completedDate=completedDate,
+        completionNotes=completionNotes,
     )
 
 

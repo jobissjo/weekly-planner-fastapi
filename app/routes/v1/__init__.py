@@ -1,8 +1,10 @@
 from fastapi import APIRouter
 
 from app.routes.v1 import (
+    announcement_routes,
     auth_routes,
     chatbot_routes,
+    feedback_routes,
     motivation_routes,
     reward_routes,
     streak_routes,
@@ -18,3 +20,5 @@ router.include_router(task_routes.router)
 router.include_router(streak_routes.router)
 router.include_router(reward_routes.router)
 router.include_router(chatbot_routes.router)
+router.include_router(feedback_routes.router)
+router.include_router(announcement_routes.router)

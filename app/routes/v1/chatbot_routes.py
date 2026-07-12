@@ -137,6 +137,8 @@ async def chat_with_bot(data: ChatQuery, current_user: User = Depends(any_user_r
         priority: Optional[str] = None,
         status: Optional[str] = None,
         description: Optional[str] = None,
+        completedDate: Optional[str] = None,
+        completionNotes: Optional[str] = None,
     ) -> str:
         """
         Update details of a task belonging to the current user.
@@ -148,6 +150,8 @@ async def chat_with_bot(data: ChatQuery, current_user: User = Depends(any_user_r
         - priority: Optional new priority (high, medium, low)
         - status: Optional new status (pending, completed, skipped)
         - description: Optional new description
+        - completedDate: Optional date when the task was completed in YYYY-MM-DD format
+        - completionNotes: Optional notes or achievements about the task's completion
         """
         return await mcp_tools.update_task_tool(
             user=current_user,
@@ -159,6 +163,27 @@ async def chat_with_bot(data: ChatQuery, current_user: User = Depends(any_user_r
             priority=priority,
             status=status,
             description=description,
+            completedDate=completedDate,
+            completionNotes=completionNotes,
+        )
+
+    @tool
+    async def mark_task_completed(
+        task_id: str,
+        completedDate: Optional[str] = None,
+        completionNotes: Optional[str] = None,
+    ) -> str:
+        """
+        Mark a task belonging to the current user as completed, optionally providing completion details.
+        - task_id: The ID of the task to complete
+        - completedDate: Optional date when the task was completed in YYYY-MM-DD format
+        - completionNotes: Optional notes, thoughts, or achievements about the task's completion
+        """
+        return await mcp_tools.mark_task_completed_tool(
+            user=current_user,
+            task_id=task_id,
+            completedDate=completedDate,
+            completionNotes=completionNotes,
         )
 
     @tool
@@ -169,7 +194,14 @@ async def chat_with_bot(data: ChatQuery, current_user: User = Depends(any_user_r
         """
         return await mcp_tools.delete_task_tool(user=current_user, task_id=task_id)
 
-    tools = [create_task, list_my_tasks, get_task_by_title, update_task, delete_task]
+    tools = [
+        create_task,
+        list_my_tasks,
+        get_task_by_title,
+        update_task,
+        mark_task_completed,
+        delete_task,
+    ]
 
     # 3. Add admin tools if the caller has admin permissions
     from app.models.enums import UserRole
@@ -233,6 +265,7 @@ async def chat_with_bot(data: ChatQuery, current_user: User = Depends(any_user_r
                     f"The current user's role is: {current_user.role.value}.\n"
                     f"Today's date is: {user_date} ({user_weekday}).\n"
                     "You can create tasks, list them, search for them, update them, and delete them. "
+                    "You can also mark tasks as completed, optionally specifying a completedDate and completionNotes.\n"
                     "You can only perform actions for the current user. "
                     "For administration features, you must verify the user has the admin role via tools.\n"
                     "CRITICAL CONSTRAINT: Do NOT mention technical implementation details, internal function names (e.g. 'list_my_tasks', 'create_task', etc.), or tools you are using under the hood in your responses to the user. "

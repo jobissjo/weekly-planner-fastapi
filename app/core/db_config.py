@@ -2,6 +2,8 @@ from beanie import init_beanie
 from pymongo import AsyncMongoClient
 
 from app.core.settings import setting
+from app.models.announcement import Announcement
+from app.models.feedback import Feedback
 from app.models.motivation import Motivation
 from app.models.profile import Profile
 from app.models.reward import Reward
@@ -25,5 +27,7 @@ async def init_db():
             UserStreak,
             StreakRewardHistory,
             Reward,
+            Feedback,
+            Announcement,
         ],
     )
