@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Optional
 
 from beanie import PydanticObjectId
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from app.models.enums import TaskPriority, TaskStatus
 
@@ -19,6 +19,13 @@ class TaskCreateSchema(BaseModel):
     completionNotes: Optional[str] = None
     completedDate: Optional[str] = Field(None, pattern=r"^\d{4}-\d{2}-\d{2}$")
 
+    @field_validator("completedDate", "completionNotes", mode="before")
+    @classmethod
+    def empty_to_none(cls, v):
+        if v == "":
+            return None
+        return v
+
 
 class TaskUpdateSchema(BaseModel):
     title: Optional[str] = Field(None, min_length=1, max_length=200)
@@ -31,6 +38,13 @@ class TaskUpdateSchema(BaseModel):
     status: Optional[TaskStatus] = None
     completionNotes: Optional[str] = None
     completedDate: Optional[str] = Field(None, pattern=r"^\d{4}-\d{2}-\d{2}$")
+
+    @field_validator("completedDate", "completionNotes", mode="before")
+    @classmethod
+    def empty_to_none(cls, v):
+        if v == "":
+            return None
+        return v
 
 
 class TaskResponse(BaseModel):
