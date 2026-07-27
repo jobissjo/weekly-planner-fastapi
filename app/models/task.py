@@ -1,10 +1,23 @@
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional
 
 from beanie import Document, PydanticObjectId
-from pydantic import Field
+from pydantic import BaseModel, Field
 
-from app.models.enums import TaskPriority, TaskStatus
+from app.models.enums import RecurrencePattern, TaskPriority, TaskStatus
+
+
+class Subtask(BaseModel):
+    id: str
+    title: str
+    completed: bool = False
+
+
+class TaskAttachment(BaseModel):
+    id: str
+    type: str  # "image" | "link"
+    url: str
+    name: Optional[str] = None
 
 
 class Task(Document):
@@ -17,6 +30,11 @@ class Task(Document):
     priority: TaskPriority = TaskPriority.MEDIUM
     isOptional: bool = False
     status: TaskStatus = TaskStatus.PENDING
+    recurrence: Optional[RecurrencePattern] = RecurrencePattern.NONE
+    subtasks: Optional[List[Subtask]] = None
+    attachments: Optional[List[TaskAttachment]] = None
+    calendarEventId: Optional[str] = None
+    isSyncedToCalendar: Optional[bool] = False
     completionNotes: Optional[str] = None
     completedDate: Optional[str] = None
     createdAt: datetime = Field(default_factory=datetime.utcnow)
