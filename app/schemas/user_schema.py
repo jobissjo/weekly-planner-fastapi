@@ -72,3 +72,26 @@ class PushTokenSchema(BaseModel):
 
 class AuthSettingsSchema(BaseModel):
     allow_password_login: bool
+
+
+class ProfileGamificationUpdateSchema(BaseModel):
+    xp: Optional[int] = None
+    level: Optional[int] = None
+    active_theme: Optional[str] = None
+    unlocked_themes: Optional[list[str]] = None
+    active_border: Optional[str] = None
+    unlocked_borders: Optional[list[str]] = None
+
+
+class ProfileResponseSchema(BaseModel):
+    bio: Optional[str] = None
+    profile_picture_url: Optional[str] = None
+    email_notifications: bool = True
+    reminders: bool = True
+    xp: int = 350
+    level: int = 1
+    active_theme: str = "system"
+    unlocked_themes: list[str] = Field(default_factory=lambda: ["light", "dark", "system"])
+    active_border: str = "default"
+    unlocked_borders: list[str] = Field(default_factory=lambda: ["default"])
+

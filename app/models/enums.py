@@ -23,6 +23,14 @@ class TaskStatus(str, enum.Enum):
     SKIPPED = "skipped"
 
 
+class RecurrencePattern(str, enum.Enum):
+    NONE = "none"
+    DAILY = "daily"
+    WEEKLY = "weekly"
+    BIWEEKLY = "biweekly"
+    MONTHLY = "monthly"
+
+
 class FeedbackType(str, enum.Enum):
     CONTACT = "contact"
     REPORT = "report"
