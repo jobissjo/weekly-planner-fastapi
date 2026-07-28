@@ -15,6 +15,12 @@ class Profile(Document):
     profile_picture_url: Optional[str] = Field(default=None, max_length=255)
     email_notifications: bool = True
     reminders: bool = True
+    xp: int = 350
+    level: int = 1
+    active_theme: str = "system"
+    unlocked_themes: list[str] = Field(default_factory=lambda: ["light", "dark", "system"])
+    active_border: str = "default"
+    unlocked_borders: list[str] = Field(default_factory=lambda: ["default"])
 
     class Settings:
         collection_name = "profiles"

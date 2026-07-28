@@ -1,12 +1,17 @@
-from typing import Optional
+from typing import List, Optional
+import uuid
+from datetime import date
 
 from app.models.enums import TaskPriority, TaskStatus, UserRole
-from app.models.task import Task
+from app.models.task import Task, Subtask
 from app.models.user import User
+from app.models.streak import UserStreak
 from app.repositories import UserRepository
 from app.services.task_service import TaskService
+from app.services.streak_service import StreakService
 
 task_service = TaskService()
+streak_service = StreakService()
 
 
 async def create_task_tool(
@@ -224,3 +229,169 @@ async def admin_get_users_by_name_tool(user: User, name: str) -> str:
         return "\n".join(lines)
     except Exception as e:
         return f"Error searching users: {str(e)}"
+
+
+async def get_user_streak_tool(user: User, today_str: Optional[str] = None) -> str:
+    """
+    Get the streak status for the authenticated user.
+    """
+    try:
+        today_date = today_str or date.today().isoformat()
+        streak = await streak_service.get_user_streak(user.id, today_date)
+        return (
+            f"User Streak Status:\n"
+            f"- Current Streak: {streak.current_streak} days\n"
+            f"- Longest Streak: {streak.longest_streak} days\n"
+            f"- Available Freezes: {streak.available_freezes}\n"
+            f"- Is Streak Active Today: {streak.is_streak_active}\n"
+            f"- Last Active Date: {streak.last_active_date}"
+        )
+    except Exception as e:
+        return f"Error fetching streak: {str(e)}"
+
+
+async def freeze_streak_tool(user: User, today_str: Optional[str] = None) -> str:
+    """
+    Use an available freeze to protect the user's streak for today.
+    """
+    try:
+        today_date = today_str or date.today().isoformat()
+        streak = await streak_service.use_freeze(user.id, today_date)
+        return f"Success: Streak freeze applied! Current streak remains at {streak.current_streak} days. Freezes left: {streak.available_freezes}."
+    except Exception as e:
+        return f"Error freezing streak: {str(e)}"
+
+
+async def get_user_gamification_profile_tool(user: User) -> str:
+    """
+    Get gamification profile details (XP, Level, Theme, Avatar Border) for the user.
+    """
+    try:
+        profile = await UserRepository.get_user_profile_by_id(str(user.id))
+        xp = getattr(profile, "xp", 350) if profile else 350
+        level = getattr(profile, "level", 1) if profile else 1
+        active_theme = getattr(profile, "active_theme", "system") if profile else "system"
+        unlocked_themes = getattr(profile, "unlocked_themes", ["light", "dark", "system"]) if profile else ["light", "dark", "system"]
+        active_border = getattr(profile, "active_border", "default") if profile else "default"
+
+        return (
+            f"User Gamification Profile:\n"
+            f"- XP: {xp} points\n"
+            f"- Level: {level}\n"
+            f"- Active Theme: {active_theme}\n"
+            f"- Unlocked Themes: {', '.join(unlocked_themes)}\n"
+            f"- Active Avatar Border: {active_border}"
+        )
+    except Exception as e:
+        return f"Error fetching gamification profile: {str(e)}"
+
+
+async def update_user_theme_tool(user: User, theme: str) -> str:
+    """
+    Update the active app theme for the user.
+    """
+    try:
+        theme_clean = theme.lower().strip()
+        allowed = ["light", "dark", "system", "cyberpunk", "forest", "sunset"]
+        if theme_clean not in allowed:
+            return f"Error: Theme '{theme}' is invalid. Allowed options: {', '.join(allowed)}."
+
+        profile = await UserRepository.get_user_profile_by_id(str(user.id))
+        if not profile:
+            profile = await UserRepository.update_notification_preferences(str(user.id), True, True)
+
+        profile.active_theme = theme_clean
+        if hasattr(profile, "unlocked_themes") and theme_clean not in profile.unlocked_themes:
+            profile.unlocked_themes.append(theme_clean)
+
+        await profile.save()
+        return f"Success: App theme updated to '{theme_clean}'."
+    except Exception as e:
+        return f"Error updating theme: {str(e)}"
+
+
+async def add_subtasks_tool(user: User, task_id: str, subtask_titles: List[str]) -> str:
+    """
+    Add subtask checklist items to a task belonging to the user.
+    """
+    try:
+        task = await Task.get(task_id)
+        if not task or str(task.user_id) != str(user.id):
+            return f"Error: Task with ID '{task_id}' not found."
+
+        if task.subtasks is None:
+            task.subtasks = []
+
+        added = []
+        for st_title in subtask_titles:
+            new_st = Subtask(id=str(uuid.uuid4())[:8], title=st_title, completed=False)
+            task.subtasks.append(new_st)
+            added.append(st_title)
+
+        await task.save()
+        return f"Success: Added {len(added)} subtask(s) to '{task.title}': {', '.join(added)}."
+    except Exception as e:
+        return f"Error adding subtasks: {str(e)}"
+
+
+async def toggle_subtask_tool(user: User, task_id: str, subtask_id: str) -> str:
+    """
+    Toggle a subtask item between completed and pending.
+    """
+    try:
+        task = await Task.get(task_id)
+        if not task or str(task.user_id) != str(user.id):
+            return f"Error: Task with ID '{task_id}' not found."
+
+        if not task.subtasks:
+            return f"Error: Task '{task.title}' has no subtasks."
+
+        found = False
+        new_state = False
+        st_title = ""
+        for st in task.subtasks:
+            if st.id == subtask_id or st.title.lower() == subtask_id.lower():
+                st.completed = not st.completed
+                new_state = st.completed
+                st_title = st.title
+                found = True
+                break
+
+        if not found:
+            return f"Error: Subtask '{subtask_id}' not found under task '{task.title}'."
+
+        await task.save()
+        status_label = "completed" if new_state else "pending"
+        return f"Success: Subtask '{st_title}' under '{task.title}' marked as {status_label}."
+    except Exception as e:
+        return f"Error toggling subtask: {str(e)}"
+
+
+async def generate_daily_briefing_tool(user: User, date_str: Optional[str] = None) -> str:
+    """
+    Generate a daily briefing summary for the user.
+    """
+    try:
+        target_date = date_str or date.today().isoformat()
+        tasks = await task_service.list_tasks(user.id, from_date=target_date, end_date=target_date)
+        streak = await streak_service.get_user_streak(user.id, target_date)
+
+        pending_count = len([t for t in tasks if t.status == TaskStatus.PENDING])
+        completed_count = len([t for t in tasks if t.status == TaskStatus.COMPLETED])
+        high_prio = [t.title for t in tasks if t.priority == TaskPriority.HIGH and t.status == TaskStatus.PENDING]
+
+        briefing = [
+            f"🌅 Daily Briefing for {user.first_name} ({target_date}):",
+            f"- Current Streak: {streak.current_streak} days 🔥",
+            f"- Total Tasks Scheduled Today: {len(tasks)} ({pending_count} pending, {completed_count} completed)",
+        ]
+
+        if high_prio:
+            briefing.append(f"- High Priority Focus Areas: {', '.join(high_prio)}")
+        else:
+            briefing.append("- No high priority urgent tasks scheduled. Great pace!")
+
+        return "\n".join(briefing)
+    except Exception as e:
+        return f"Error generating daily briefing: {str(e)}"
+

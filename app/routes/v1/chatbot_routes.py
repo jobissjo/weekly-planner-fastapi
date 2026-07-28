@@ -194,6 +194,69 @@ async def chat_with_bot(data: ChatQuery, current_user: User = Depends(any_user_r
         """
         return await mcp_tools.delete_task_tool(user=current_user, task_id=task_id)
 
+    @tool
+    async def get_user_streak(today_str: Optional[str] = None) -> str:
+        """
+        Get the productivity streak status, longest streak, and available streak freeze days for the current user.
+        - today_str: Optional date string in YYYY-MM-DD format
+        """
+        return await mcp_tools.get_user_streak_tool(user=current_user, today_str=today_str)
+
+    @tool
+    async def freeze_streak(today_str: Optional[str] = None) -> str:
+        """
+        Use an available streak freeze to protect the user's streak for today.
+        - today_str: Optional date string in YYYY-MM-DD format
+        """
+        return await mcp_tools.freeze_streak_tool(user=current_user, today_str=today_str)
+
+    @tool
+    async def get_user_gamification_profile() -> str:
+        """
+        Get current XP score, Level, Level Title, active app theme, and unlocked rewards for the current user.
+        """
+        return await mcp_tools.get_user_gamification_profile_tool(user=current_user)
+
+    @tool
+    async def update_user_theme(theme: str) -> str:
+        """
+        Update the active app theme for the current user.
+        - theme: Theme name ('cyberpunk', 'forest', 'sunset', 'light', 'dark', 'system')
+        """
+        return await mcp_tools.update_user_theme_tool(user=current_user, theme=theme)
+
+    @tool
+    async def add_subtasks(task_id: str, subtask_titles: List[str]) -> str:
+        """
+        Add a list of subtask checklist items to an existing task.
+        - task_id: The ID of the task
+        - subtask_titles: Array/list of subtask item title strings
+        """
+        return await mcp_tools.add_subtasks_tool(
+            user=current_user, task_id=task_id, subtask_titles=subtask_titles
+        )
+
+    @tool
+    async def toggle_subtask(task_id: str, subtask_id: str) -> str:
+        """
+        Toggle a checklist subtask between completed and pending.
+        - task_id: The ID of the task
+        - subtask_id: The ID or title of the subtask item
+        """
+        return await mcp_tools.toggle_subtask_tool(
+            user=current_user, task_id=task_id, subtask_id=subtask_id
+        )
+
+    @tool
+    async def generate_daily_briefing(date_str: Optional[str] = None) -> str:
+        """
+        Generate a daily briefing summary highlighting urgent priorities, agenda count, and streak count.
+        - date_str: Optional date string in YYYY-MM-DD format
+        """
+        return await mcp_tools.generate_daily_briefing_tool(
+            user=current_user, date_str=date_str
+        )
+
     tools = [
         create_task,
         list_my_tasks,
@@ -201,6 +264,13 @@ async def chat_with_bot(data: ChatQuery, current_user: User = Depends(any_user_r
         update_task,
         mark_task_completed,
         delete_task,
+        get_user_streak,
+        freeze_streak,
+        get_user_gamification_profile,
+        update_user_theme,
+        add_subtasks,
+        toggle_subtask,
+        generate_daily_briefing,
     ]
 
     # 3. Add admin tools if the caller has admin permissions
@@ -259,17 +329,19 @@ async def chat_with_bot(data: ChatQuery, current_user: User = Depends(any_user_r
             (
                 "system",
                 (
-                    "You are an intelligent weekly planner chatbot. You help the user manage their tasks.\n"
+                    "You are an intelligent weekly planner AI assistant. You help the user manage their schedule, productivity habits, and goals.\n"
                     f"The current user's email is: {current_user.email}.\n"
                     f"The current user's name is: {current_user.first_name} {current_user.last_name}.\n"
                     f"The current user's role is: {current_user.role.value}.\n"
                     f"Today's date is: {user_date} ({user_weekday}).\n"
-                    "You can create tasks, list them, search for them, update them, and delete them. "
-                    "You can also mark tasks as completed, optionally specifying a completedDate and completionNotes.\n"
-                    "You can only perform actions for the current user. "
-                    "For administration features, you must verify the user has the admin role via tools.\n"
-                    "CRITICAL CONSTRAINT: Do NOT mention technical implementation details, internal function names (e.g. 'list_my_tasks', 'create_task', etc.), or tools you are using under the hood in your responses to the user. "
-                    "Always formulate your replies using natural, user-friendly language as a helpful personal assistant."
+                    "Capabilities:\n"
+                    "1. Task Management: Create, list, search, update, delete, and mark tasks as completed.\n"
+                    "2. Subtasks & Checklists: Add subtasks to tasks and toggle subtask status.\n"
+                    "3. Streaks: Check current streak, longest streak, available freezes, and apply streak freezes.\n"
+                    "4. Gamification & Themes: Check XP/Level, level title, and switch app themes ('cyberpunk', 'forest', 'sunset', 'light', 'dark', 'system').\n"
+                    "5. Daily Briefings: Generate custom daily briefings summarizing priorities and agenda.\n"
+                    "CRITICAL CONSTRAINT: Do NOT mention technical implementation details, internal function names, or tools you are using under the hood in your responses to the user. "
+                    "Always formulate your replies using natural, encouraging, user-friendly language as a personal Zen assistant."
                 ),
             ),
             MessagesPlaceholder(variable_name="chat_history"),
