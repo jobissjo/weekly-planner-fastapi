@@ -31,6 +31,7 @@ class Task(Document):
     isOptional: bool = False
     status: TaskStatus = TaskStatus.PENDING
     recurrence: Optional[RecurrencePattern] = RecurrencePattern.NONE
+    specializedTitle: Optional[str] = None
     subtasks: Optional[List[Subtask]] = None
     attachments: Optional[List[TaskAttachment]] = None
     calendarEventId: Optional[str] = None

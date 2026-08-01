@@ -86,15 +86,25 @@ async def chat_with_bot(data: ChatQuery, current_user: User = Depends(any_user_r
         endTime: str,
         priority: str = "medium",
         description: Optional[str] = None,
+        specializedTitle: Optional[str] = None,
+        recurrence: str = "none",
+        recurrenceEndDate: Optional[str] = None,
+        weeklyDays: Optional[List[int]] = None,
+        monthlyDay: Optional[int] = None,
     ) -> str:
         """
         Create a new task for the current user.
-        - title: Title of the task
+        - title: Base title of the task
         - date: Date in YYYY-MM-DD format
         - startTime: Start time in HH:mm format
         - endTime: End time in HH:mm format
         - priority: Priority, one of 'high', 'medium', 'low'
         - description: Optional description of the task
+        - specializedTitle: Optional specialized sub-topic/note for this instance (e.g. 'Learn React State')
+        - recurrence: Recurrence pattern ('none', 'daily', 'weekly', 'biweekly', 'monthly')
+        - recurrenceEndDate: End date for recurring occurrences (YYYY-MM-DD)
+        - weeklyDays: List of weekday indexes for weekly pattern (0 = Mon, 6 = Sun)
+        - monthlyDay: Day of month for monthly pattern (1-31)
         """
         return await mcp_tools.create_task_tool(
             user=current_user,
@@ -104,6 +114,11 @@ async def chat_with_bot(data: ChatQuery, current_user: User = Depends(any_user_r
             endTime=endTime,
             priority=priority,
             description=description,
+            specializedTitle=specializedTitle,
+            recurrence=recurrence,
+            recurrenceEndDate=recurrenceEndDate,
+            weeklyDays=weeklyDays,
+            monthlyDay=monthlyDay,
         )
 
     @tool
@@ -122,7 +137,7 @@ async def chat_with_bot(data: ChatQuery, current_user: User = Depends(any_user_r
     @tool
     async def get_task_by_title(title: str) -> str:
         """
-        Search for tasks matching a given title/name for the current user.
+        Get tasks by their title/name for the current user.
         - title: Title of the task to search for
         """
         return await mcp_tools.get_task_by_title_tool(user=current_user, title=title)
@@ -131,6 +146,7 @@ async def chat_with_bot(data: ChatQuery, current_user: User = Depends(any_user_r
     async def update_task(
         task_id: str,
         title: Optional[str] = None,
+        specializedTitle: Optional[str] = None,
         date: Optional[str] = None,
         startTime: Optional[str] = None,
         endTime: Optional[str] = None,
@@ -143,7 +159,8 @@ async def chat_with_bot(data: ChatQuery, current_user: User = Depends(any_user_r
         """
         Update details of a task belonging to the current user.
         - task_id: The ID of the task to update
-        - title: Optional new title
+        - title: Optional new base title
+        - specializedTitle: Optional new specialized sub-topic/note for this task instance
         - date: Optional new date in YYYY-MM-DD format
         - startTime: Optional new start time in HH:mm format
         - endTime: Optional new end time in HH:mm format
@@ -157,6 +174,7 @@ async def chat_with_bot(data: ChatQuery, current_user: User = Depends(any_user_r
             user=current_user,
             task_id=task_id,
             title=title,
+            specializedTitle=specializedTitle,
             date=date,
             startTime=startTime,
             endTime=endTime,
@@ -337,9 +355,10 @@ async def chat_with_bot(data: ChatQuery, current_user: User = Depends(any_user_r
                     "Capabilities:\n"
                     "1. Task Management: Create, list, search, update, delete, and mark tasks as completed.\n"
                     "2. Subtasks & Checklists: Add subtasks to tasks and toggle subtask status.\n"
-                    "3. Streaks: Check current streak, longest streak, available freezes, and apply streak freezes.\n"
-                    "4. Gamification & Themes: Check XP/Level, level title, and switch app themes ('cyberpunk', 'forest', 'sunset', 'light', 'dark', 'system').\n"
-                    "5. Daily Briefings: Generate custom daily briefings summarizing priorities and agenda.\n"
+                    "3. Recurrence & Focus Notes: Schedule recurring tasks ('daily', 'weekly', 'biweekly', 'monthly') with end dates, weekly day selections, and specialized sub-topics (`specializedTitle`) for individual task instances.\n"
+                    "4. Streaks: Check current streak, longest streak, available freezes, and apply streak freezes.\n"
+                    "5. Gamification & Themes: Check XP/Level, level title, and switch app themes ('cyberpunk', 'forest', 'sunset', 'light', 'dark', 'system').\n"
+                    "6. Daily Briefings: Generate custom daily briefings summarizing priorities and agenda.\n"
                     "CRITICAL CONSTRAINT: Do NOT mention technical implementation details, internal function names, or tools you are using under the hood in your responses to the user. "
                     "Always formulate your replies using natural, encouraging, user-friendly language as a personal Zen assistant."
                 ),

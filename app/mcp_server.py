@@ -1,5 +1,5 @@
 import contextvars
-from typing import Optional
+from typing import Optional, List
 
 from mcp.server.fastmcp import FastMCP
 
@@ -86,15 +86,25 @@ async def create_task(
     endTime: str,
     priority: str = "medium",
     description: Optional[str] = None,
+    specializedTitle: Optional[str] = None,
+    recurrence: str = "none",
+    recurrenceEndDate: Optional[str] = None,
+    weeklyDays: Optional[List[int]] = None,
+    monthlyDay: Optional[int] = None,
 ) -> str:
     """
     Create a new task for the authenticated user.
-    - title: Title of the task
-    - date: Date in YYYY-MM-DD format
+    - title: Base title of the task
+    - date: Start date in YYYY-MM-DD format
     - startTime: Start time in HH:mm format
     - endTime: End time in HH:mm format
     - priority: Priority, one of 'high', 'medium', 'low'
     - description: Optional description of the task
+    - specializedTitle: Optional specific topic/note for this occurrence (e.g. 'Learn React State')
+    - recurrence: Pattern ('none', 'daily', 'weekly', 'biweekly', 'monthly')
+    - recurrenceEndDate: End date for recurring occurrences (YYYY-MM-DD)
+    - weeklyDays: Selected days of week for weekly/biweekly pattern (0 = Mon, 6 = Sun)
+    - monthlyDay: Selected day of month for monthly pattern (1-31)
     """
     user = await get_mcp_user()
     return await mcp_tools.create_task_tool(
@@ -105,6 +115,11 @@ async def create_task(
         endTime=endTime,
         priority=priority,
         description=description,
+        specializedTitle=specializedTitle,
+        recurrence=recurrence,
+        recurrenceEndDate=recurrenceEndDate,
+        weeklyDays=weeklyDays,
+        monthlyDay=monthlyDay,
     )
 
 
@@ -137,6 +152,7 @@ async def get_task_by_title(title: str) -> str:
 async def update_task(
     task_id: str,
     title: Optional[str] = None,
+    specializedTitle: Optional[str] = None,
     date: Optional[str] = None,
     startTime: Optional[str] = None,
     endTime: Optional[str] = None,
@@ -149,7 +165,8 @@ async def update_task(
     """
     Update details of a task belonging to the authenticated user.
     - task_id: The ID of the task to update
-    - title: Optional new title
+    - title: Optional new base title
+    - specializedTitle: Optional specialized title/topic for this specific task instance
     - date: Optional new date in YYYY-MM-DD format
     - startTime: Optional new start time in HH:mm format
     - endTime: Optional new end time in HH:mm format
@@ -164,6 +181,7 @@ async def update_task(
         user=user,
         task_id=task_id,
         title=title,
+        specializedTitle=specializedTitle,
         date=date,
         startTime=startTime,
         endTime=endTime,

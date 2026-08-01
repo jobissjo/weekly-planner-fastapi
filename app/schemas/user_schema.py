@@ -22,6 +22,7 @@ class RegisterSchema(BaseModel):
     last_name: str
     otp: str
     role: UserRole = Field(default=UserRole.USER)
+    referral_code: Optional[str] = None
 
 
 class VerifyUserSchema(BaseModel):
@@ -94,4 +95,8 @@ class ProfileResponseSchema(BaseModel):
     unlocked_themes: list[str] = Field(default_factory=lambda: ["light", "dark", "system"])
     active_border: str = "default"
     unlocked_borders: list[str] = Field(default_factory=lambda: ["default"])
+    referral_code: Optional[str] = None
+    referred_by: Optional[str] = None
+    accountability_partners: list[str] = Field(default_factory=list)
+
 

@@ -43,13 +43,44 @@ class UserService:
                 "A user with this username or email already exists.", 400
             )
 
-        user_dict = user_data.model_dump(exclude={"otp"})
+        ref_code = user_data.referral_code.strip() if user_data.referral_code else None
+        user_dict = user_data.model_dump(exclude={"otp", "referral_code"})
         hashed_password = await hash_password(user_dict["password"])
+
+        initial_xp = 450 if ref_code else 350
 
         if not existing_user:
             user_dict["password"] = hashed_password
             user = User(**user_dict)
             await user.insert()
+
+            my_ref_code = f"ZEN-{user.first_name.upper().replace(' ', '')}2026"
+            profile = Profile(
+                user=user,
+                xp=initial_xp,
+                level=(initial_xp // 500) + 1,
+                referral_code=my_ref_code,
+                referred_by=ref_code,
+                accountability_partners=[],
+            )
+
+            if ref_code:
+                referrer_profile = await Profile.find_one(Profile.referral_code == ref_code)
+                if referrer_profile:
+                    referrer_profile.xp += 250
+                    referrer_profile.level = (referrer_profile.xp // 500) + 1
+
+                    new_user_name = f"{user.first_name} {user.last_name}".strip()
+                    if new_user_name not in referrer_profile.accountability_partners:
+                        referrer_profile.accountability_partners.append(new_user_name)
+                    await referrer_profile.save()
+
+                    referrer_user = await User.get(referrer_profile.user.id)
+                    if referrer_user:
+                        ref_name = f"{referrer_user.first_name} {referrer_user.last_name}".strip()
+                        profile.accountability_partners.append(ref_name)
+
+            await profile.insert()
             return user
 
         elif not existing_user.is_active and existing_user.email == user_data.email:
@@ -60,6 +91,7 @@ class UserService:
             return existing_user
 
         raise CustomException("A user with this username already exists.", 400)
+
 
     async def login_user(self, user_data: user_schema.LoginEmailSchema):
         existing_user = await UserRepository.get_user_by_email(user_data.email)
