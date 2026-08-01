@@ -21,6 +21,10 @@ class Profile(Document):
     unlocked_themes: list[str] = Field(default_factory=lambda: ["light", "dark", "system"])
     active_border: str = "default"
     unlocked_borders: list[str] = Field(default_factory=lambda: ["default"])
+    referral_code: Optional[str] = None
+    referred_by: Optional[str] = None
+    accountability_partners: list[str] = Field(default_factory=list)
+
 
     class Settings:
         collection_name = "profiles"

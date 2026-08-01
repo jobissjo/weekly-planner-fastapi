@@ -22,6 +22,11 @@ async def create_task_tool(
     endTime: str,
     priority: str = "medium",
     description: Optional[str] = None,
+    specializedTitle: Optional[str] = None,
+    recurrence: str = "none",
+    recurrenceEndDate: Optional[str] = None,
+    weeklyDays: Optional[List[int]] = None,
+    monthlyDay: Optional[int] = None,
 ) -> str:
     """
     Create a new task for the authenticated user.
@@ -45,16 +50,36 @@ async def create_task_tool(
         except ValueError:
             task_priority = TaskPriority.MEDIUM
 
+        try:
+            from app.models.enums import RecurrencePattern
+
+            rec_pattern = RecurrencePattern(recurrence.lower())
+        except ValueError:
+            from app.models.enums import RecurrencePattern
+
+            rec_pattern = RecurrencePattern.NONE
+
         schema = TaskCreateSchema(
             title=title,
+            specializedTitle=specializedTitle,
             date=date,
             startTime=startTime,
             endTime=endTime,
             priority=task_priority,
             description=description,
+            recurrence=rec_pattern,
+            recurrenceEndDate=recurrenceEndDate,
+            weeklyDays=weeklyDays,
+            monthlyDay=monthlyDay,
         )
         task = await task_service.create_task(user.id, schema)
-        return f"Success: Task '{task.title}' created with ID: {task.id} on {task.date} ({task.startTime}-{task.endTime})."
+        spec_text = f" (Focus: {specializedTitle})" if specializedTitle else ""
+        rec_text = (
+            f" [Recurrence: {rec_pattern.value}]"
+            if rec_pattern != RecurrencePattern.NONE
+            else ""
+        )
+        return f"Success: Task '{task.title}'{spec_text} created with ID: {task.id} on {task.date} ({task.startTime}-{task.endTime}){rec_text}."
     except Exception as e:
         return f"Error creating task: {str(e)}"
 
@@ -103,6 +128,7 @@ async def update_task_tool(
     user: User,
     task_id: str,
     title: Optional[str] = None,
+    specializedTitle: Optional[str] = None,
     date: Optional[str] = None,
     startTime: Optional[str] = None,
     endTime: Optional[str] = None,
@@ -121,6 +147,8 @@ async def update_task_tool(
         update_data = {}
         if title is not None:
             update_data["title"] = title
+        if specializedTitle is not None:
+            update_data["specializedTitle"] = specializedTitle
         if date is not None:
             update_data["date"] = date
         if startTime is not None:

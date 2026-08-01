@@ -10,6 +10,7 @@ from app.models.task import Subtask, TaskAttachment
 
 class TaskCreateSchema(BaseModel):
     title: str = Field(..., min_length=1, max_length=200)
+    specializedTitle: Optional[str] = None
     description: Optional[str] = None
     date: str = Field(..., pattern=r"^\d{4}-\d{2}-\d{2}$")  # YYYY-MM-DD
     startTime: str = Field(..., pattern=r"^\d{2}:\d{2}$")  # HH:mm
@@ -18,6 +19,9 @@ class TaskCreateSchema(BaseModel):
     isOptional: bool = False
     status: TaskStatus = TaskStatus.PENDING
     recurrence: Optional[RecurrencePattern] = RecurrencePattern.NONE
+    recurrenceEndDate: Optional[str] = Field(None, pattern=r"^\d{4}-\d{2}-\d{2}$")
+    weeklyDays: Optional[List[int]] = None  # 0 = Mon, 6 = Sun
+    monthlyDay: Optional[int] = Field(None, ge=1, le=31)
     subtasks: Optional[List[Subtask]] = None
     attachments: Optional[List[TaskAttachment]] = None
     calendarEventId: Optional[str] = None
@@ -35,6 +39,7 @@ class TaskCreateSchema(BaseModel):
 
 class TaskUpdateSchema(BaseModel):
     title: Optional[str] = Field(None, min_length=1, max_length=200)
+    specializedTitle: Optional[str] = None
     description: Optional[str] = None
     date: Optional[str] = Field(None, pattern=r"^\d{4}-\d{2}-\d{2}$")
     startTime: Optional[str] = Field(None, pattern=r"^\d{2}:\d{2}$")
@@ -43,6 +48,9 @@ class TaskUpdateSchema(BaseModel):
     isOptional: Optional[bool] = None
     status: Optional[TaskStatus] = None
     recurrence: Optional[RecurrencePattern] = None
+    recurrenceEndDate: Optional[str] = Field(None, pattern=r"^\d{4}-\d{2}-\d{2}$")
+    weeklyDays: Optional[List[int]] = None
+    monthlyDay: Optional[int] = None
     subtasks: Optional[List[Subtask]] = None
     attachments: Optional[List[TaskAttachment]] = None
     calendarEventId: Optional[str] = None
@@ -61,6 +69,7 @@ class TaskUpdateSchema(BaseModel):
 class TaskResponse(BaseModel):
     id: PydanticObjectId
     title: str
+    specializedTitle: Optional[str] = None
     description: Optional[str] = None
     date: str
     startTime: str
@@ -79,3 +88,4 @@ class TaskResponse(BaseModel):
     userId: PydanticObjectId = Field(..., validation_alias="user_id")
 
     model_config = {"from_attributes": True}
+
