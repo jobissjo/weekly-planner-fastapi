@@ -203,7 +203,7 @@ websockets==16.0
 wtforms==3.2.2
     # via sqladmin
 
-mcp>=1.28.0
+mcp>=1.28.0,<2.0.0
 httpx-sse>=0.4.0
 sse-starlette>=3.0.0
 langchain
