@@ -7,7 +7,7 @@ pydantic-settings
 aiofiles
 beanie
 motor
-mcp
+mcp>=1.2.0
 langchain
 langchain-openai
 langchain-google-genai

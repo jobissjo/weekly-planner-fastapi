@@ -80,14 +80,19 @@ class TaskService:
         if schema.status == "completed" and not schema.completedDate:
             schema.completedDate = schema.date
 
-        if (
-            schema.recurrence
-            and schema.recurrence.value != "none"
-            and schema.recurrenceEndDate
-        ):
+        if schema.recurrence and schema.recurrence.value != "none":
+            if not schema.recurrenceEndDate:
+                from datetime import datetime, timedelta
+
+                try:
+                    start_dt = datetime.strptime(schema.date, "%Y-%m-%d").date()
+                    schema.recurrenceEndDate = (start_dt + timedelta(days=30)).strftime("%Y-%m-%d")
+                except Exception:
+                    pass
+
             occurrence_dates = calculate_recurrence_dates(
                 schema.date,
-                schema.recurrenceEndDate,
+                schema.recurrenceEndDate or schema.date,
                 schema.recurrence.value,
                 schema.weeklyDays,
                 schema.monthlyDay,

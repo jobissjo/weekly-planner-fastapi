@@ -87,5 +87,8 @@ class TaskResponse(BaseModel):
     createdAt: datetime
     userId: PydanticObjectId = Field(..., validation_alias="user_id")
 
-    model_config = {"from_attributes": True}
+    model_config = {
+        "from_attributes": True,
+        "populate_by_name": True,
+    }
 
