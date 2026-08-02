@@ -29,10 +29,10 @@ class TaskCreateSchema(BaseModel):
     completionNotes: Optional[str] = None
     completedDate: Optional[str] = Field(None, pattern=r"^\d{4}-\d{2}-\d{2}$")
 
-    @field_validator("completedDate", "completionNotes", mode="before")
+    @field_validator("completedDate", "completionNotes", "recurrenceEndDate", "specializedTitle", mode="before")
     @classmethod
     def empty_to_none(cls, v):
-        if v == "":
+        if v == "" or v is None:
             return None
         return v
 
@@ -58,11 +58,12 @@ class TaskUpdateSchema(BaseModel):
     completionNotes: Optional[str] = None
     completedDate: Optional[str] = Field(None, pattern=r"^\d{4}-\d{2}-\d{2}$")
 
-    @field_validator("completedDate", "completionNotes", mode="before")
+    @field_validator("completedDate", "completionNotes", "recurrenceEndDate", "specializedTitle", mode="before")
     @classmethod
     def empty_to_none(cls, v):
-        if v == "":
+        if v == "" or v is None:
             return None
+        return v
         return v
 
 
