@@ -1,3 +1,4 @@
+from app.models.habit_quitter import BadHabit, HabitJournalLog, HabitVaultPin, SystemConfig
 from app.models.motivation import Motivation
 from app.models.profile import Profile
 from app.models.streak import StreakRewardHistory, StreakRule, UserStreak
@@ -15,4 +16,8 @@ __all__ = [
     "StreakRule",
     "UserStreak",
     "StreakRewardHistory",
+    "BadHabit",
+    "HabitJournalLog",
+    "HabitVaultPin",
+    "SystemConfig",
 ]
