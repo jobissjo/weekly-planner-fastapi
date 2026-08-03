@@ -10,6 +10,8 @@ from app.schemas.user_schema import (
     AuthSettingsSchema,
     ChangePasswordSchema,
     NotificationPreferenceSchema,
+    ProfileGamificationUpdateSchema,
+    ProfileResponseSchema,
     ProfileUpdateForm,
     ProfileUpdateSchema,
     PushTokenSchema,
@@ -27,6 +29,37 @@ user_service = UserService(email_service=email_service)
 )
 async def get_user(user: User = Depends(any_user_role)):
     return user
+
+
+@router.get("/profile", response_model=BaseResponse[ProfileResponseSchema])
+async def get_profile(
+    current_user: User = Depends(any_user_role),
+):
+    profile = await user_service.get_user_profile(str(current_user.id))
+    profile_dict = profile.model_dump()
+    if profile.referral_code is None:
+        profile_dict["referral_code"] = f"ZEN-{current_user.first_name.upper().replace(' ', '')}2026"
+    return BaseResponse(
+        status="success",
+        message="Profile retrieved successfully",
+        data=ProfileResponseSchema(**profile_dict),
+    )
+
+
+@router.patch("/gamification", response_model=BaseResponse[ProfileResponseSchema])
+async def update_gamification(
+    data: ProfileGamificationUpdateSchema,
+    current_user: User = Depends(any_user_role),
+):
+    profile = await user_service.update_gamification(str(current_user.id), data)
+    profile_dict = profile.model_dump()
+    if profile.referral_code is None:
+        profile_dict["referral_code"] = f"ZEN-{current_user.first_name.upper().replace(' ', '')}2026"
+    return BaseResponse(
+        status="success",
+        message="Gamification profile updated successfully",
+        data=ProfileResponseSchema(**profile_dict),
+    )
 
 
 @router.patch("/", response_model=BaseResponse[None])
