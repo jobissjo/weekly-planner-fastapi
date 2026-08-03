@@ -72,6 +72,39 @@ class UserRepository:
         return profile
 
     @staticmethod
+    async def update_gamification(
+        user_id: str,
+        xp: int | None = None,
+        level: int | None = None,
+        active_theme: str | None = None,
+        unlocked_themes: list[str] | None = None,
+        active_border: str | None = None,
+        unlocked_borders: list[str] | None = None,
+    ) -> Profile:
+        profile = await UserRepository.get_user_profile_by_id(user_id)
+
+        if not profile:
+            user = await UserRepository.get_user_by_id(user_id)
+            profile = Profile(user=user)
+            await profile.insert()
+
+        if xp is not None:
+            profile.xp = xp
+        if level is not None:
+            profile.level = level
+        if active_theme is not None:
+            profile.active_theme = active_theme
+        if unlocked_themes is not None:
+            profile.unlocked_themes = unlocked_themes
+        if active_border is not None:
+            profile.active_border = active_border
+        if unlocked_borders is not None:
+            profile.unlocked_borders = unlocked_borders
+
+        await profile.save()
+        return profile
+
+    @staticmethod
     async def get_users_by_name(name: str) -> list[User]:
         import re
 

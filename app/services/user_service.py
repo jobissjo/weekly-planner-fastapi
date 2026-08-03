@@ -362,6 +362,27 @@ class UserService:
             user.push_tokens.remove(push_token)
             await user.save()
 
+    async def get_user_profile(self, user_id: str) -> Profile:
+        profile = await UserRepository.get_user_profile_by_id(user_id)
+        if not profile:
+            user = await UserRepository.get_user_by_id(user_id)
+            profile = Profile(user=user)
+            await profile.insert()
+        return profile
+
+    async def update_gamification(
+        self, user_id: str, data: user_schema.ProfileGamificationUpdateSchema
+    ) -> Profile:
+        return await UserRepository.update_gamification(
+            user_id=user_id,
+            xp=data.xp,
+            level=data.level,
+            active_theme=data.active_theme,
+            unlocked_themes=data.unlocked_themes,
+            active_border=data.active_border,
+            unlocked_borders=data.unlocked_borders,
+        )
+
 
 class TempUserOTPService:
     @staticmethod
