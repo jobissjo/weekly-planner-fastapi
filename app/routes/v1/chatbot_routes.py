@@ -165,7 +165,7 @@ async def chat_with_bot(data: ChatQuery, current_user: User = Depends(any_user_r
         - startTime: Optional new start time in HH:mm format
         - endTime: Optional new end time in HH:mm format
         - priority: Optional new priority (high, medium, low)
-        - status: Optional new status (pending, completed, skipped)
+        - status: Optional new status (pending, completed, skipped, cancelled)
         - description: Optional new description
         - completedDate: Optional date when the task was completed in YYYY-MM-DD format
         - completionNotes: Optional notes or achievements about the task's completion
