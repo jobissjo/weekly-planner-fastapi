@@ -15,6 +15,8 @@ class Settings(BaseSettings):
 
     MONGODB_URL: Optional[str] = None
     GOOGLE_CLIENT_ID: Optional[str] = None
+    GOOGLE_CLIENT_SECRET: Optional[str] = None
+    GOOGLE_REDIRECT_URI: Optional[str] = "http://localhost:5173/gmail-callback"
 
     # LLM Settings for Chatbot
     LLM_PROVIDER: str = "openai"  # "openai", "google", or "groq"
