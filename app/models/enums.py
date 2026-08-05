@@ -21,6 +21,8 @@ class TaskStatus(str, enum.Enum):
     PENDING = "pending"
     COMPLETED = "completed"
     SKIPPED = "skipped"
+    CANCELLED = "cancelled"
+
 
 
 class RecurrencePattern(str, enum.Enum):
