@@ -7,12 +7,34 @@ import httpx
 from app.core.logger_config import logger
 from app.core.settings import setting
 from app.models.user import User
+from app.models.habit_quitter import SystemConfig
 from app.utils.common import CustomException
 
 
 class GmailService:
     def __init__(self):
         self.logger = logger
+
+    async def is_feature_enabled(self) -> bool:
+        """
+        Check if Gmail AI integration feature is globally enabled.
+        """
+        config = await SystemConfig.find_one(SystemConfig.key == "gmail_feature_enabled")
+        if config:
+            return config.value.lower() in ("true", "1", "yes")
+        return True
+
+    async def set_feature_enabled(self, enabled: bool) -> bool:
+        """
+        Set global Gmail feature status (admin option).
+        """
+        config = await SystemConfig.find_one(SystemConfig.key == "gmail_feature_enabled")
+        if not config:
+            config = SystemConfig(key="gmail_feature_enabled", value=str(enabled).lower())
+        else:
+            config.value = str(enabled).lower()
+        await config.save()
+        return enabled
 
     def get_oauth_url(self, user: User) -> str:
         """

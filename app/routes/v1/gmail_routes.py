@@ -2,12 +2,13 @@ from typing import List, Optional
 from pydantic import BaseModel
 from fastapi import APIRouter, Depends
 
-from app.core.permissions import any_user_role
+from app.core.permissions import any_user_role, only_admin
 from app.models.user import User
 from app.schemas.common_schema import BaseResponse
 from app.schemas.task_schema import TaskCreateSchema, TaskResponse
 from app.services.gmail_service import GmailService
 from app.services.task_service import TaskService
+from app.utils.common import CustomException
 
 router = APIRouter(prefix="/gmail", tags=["Gmail & AI Assistant"])
 gmail_service = GmailService()
@@ -17,6 +18,7 @@ task_service = TaskService()
 class GmailStatusResponse(BaseModel):
     connected: bool
     email: Optional[str] = None
+    feature_enabled: bool = True
 
 
 class GmailCallbackBody(BaseModel):
@@ -32,20 +34,50 @@ class ConvertGmailToTaskBody(BaseModel):
     priority: str = "medium"
 
 
+class FeatureToggleBody(BaseModel):
+    feature_enabled: bool
+
+
 @router.get("/status", response_model=BaseResponse[GmailStatusResponse])
 async def get_gmail_status(current_user: User = Depends(any_user_role)):
+    enabled = await gmail_service.is_feature_enabled()
     return BaseResponse(
         status="success",
         message="Gmail status retrieved successfully",
         data=GmailStatusResponse(
             connected=getattr(current_user, "gmail_connected", False),
             email=getattr(current_user, "gmail_email", None),
+            feature_enabled=enabled,
         ),
+    )
+
+
+@router.get("/admin/toggle", response_model=BaseResponse[FeatureToggleBody])
+async def get_admin_gmail_feature_toggle(admin: User = Depends(only_admin)):
+    enabled = await gmail_service.is_feature_enabled()
+    return BaseResponse(
+        status="success",
+        message="Gmail feature toggle setting retrieved",
+        data=FeatureToggleBody(feature_enabled=enabled),
+    )
+
+
+@router.patch("/admin/toggle", response_model=BaseResponse[FeatureToggleBody])
+async def update_admin_gmail_feature_toggle(
+    body: FeatureToggleBody, admin: User = Depends(only_admin)
+):
+    enabled = await gmail_service.set_feature_enabled(body.feature_enabled)
+    return BaseResponse(
+        status="success",
+        message=f"Gmail feature {'enabled' if enabled else 'disabled'} successfully",
+        data=FeatureToggleBody(feature_enabled=enabled),
     )
 
 
 @router.get("/auth-url", response_model=BaseResponse[str])
 async def get_gmail_auth_url(current_user: User = Depends(any_user_role)):
+    if not await gmail_service.is_feature_enabled():
+        raise CustomException("Gmail integration feature is currently disabled by administrator", 403)
     url = gmail_service.get_oauth_url(current_user)
     return BaseResponse(
         status="success",
@@ -58,6 +90,8 @@ async def get_gmail_auth_url(current_user: User = Depends(any_user_role)):
 async def gmail_oauth_callback(
     body: GmailCallbackBody, current_user: User = Depends(any_user_role)
 ):
+    if not await gmail_service.is_feature_enabled():
+        raise CustomException("Gmail integration feature is currently disabled by administrator", 403)
     res = await gmail_service.exchange_code_for_tokens(body.code, current_user)
     return BaseResponse(
         status="success",
@@ -65,6 +99,7 @@ async def gmail_oauth_callback(
         data=GmailStatusResponse(
             connected=True,
             email=res.get("gmail_email"),
+            feature_enabled=True,
         ),
     )
 
@@ -81,6 +116,8 @@ async def disconnect_gmail(current_user: User = Depends(any_user_role)):
 
 @router.get("/important-today", response_model=BaseResponse[List[dict]])
 async def get_important_gmail_today(current_user: User = Depends(any_user_role)):
+    if not await gmail_service.is_feature_enabled():
+        raise CustomException("Gmail integration feature is currently disabled by administrator", 403)
     items = await gmail_service.analyze_messages_with_groq(current_user)
     return BaseResponse(
         status="success",
@@ -93,6 +130,9 @@ async def get_important_gmail_today(current_user: User = Depends(any_user_role))
 async def convert_gmail_to_task(
     body: ConvertGmailToTaskBody, current_user: User = Depends(any_user_role)
 ):
+    if not await gmail_service.is_feature_enabled():
+        raise CustomException("Gmail integration feature is currently disabled by administrator", 403)
+
     from app.models.enums import TaskPriority
 
     try:
