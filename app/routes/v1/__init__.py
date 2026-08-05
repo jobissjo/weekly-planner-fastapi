@@ -5,6 +5,7 @@ from app.routes.v1 import (
     auth_routes,
     chatbot_routes,
     feedback_routes,
+    gmail_routes,
     habit_quitter_routes,
     motivation_routes,
     reward_routes,
@@ -24,3 +25,4 @@ router.include_router(chatbot_routes.router)
 router.include_router(feedback_routes.router)
 router.include_router(announcement_routes.router)
 router.include_router(habit_quitter_routes.router)
+router.include_router(gmail_routes.router)

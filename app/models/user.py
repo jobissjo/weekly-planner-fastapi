@@ -12,6 +12,9 @@ class User(Document):
     email: str = Field(unique=True, index=True)
     password: Optional[str] = Field(default=None, exclude=True)
     google_id: Optional[str] = None
+    gmail_connected: bool = False
+    gmail_refresh_token: Optional[str] = None
+    gmail_email: Optional[str] = None
     allow_password_login: bool = Field(default=True)
     is_active: bool = True
     is_superuser: bool = False
