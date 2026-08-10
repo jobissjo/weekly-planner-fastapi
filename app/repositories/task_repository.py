@@ -49,8 +49,9 @@ class TaskRepository:
         if not task:
             return None
 
-        update_data = schema.model_dump(exclude_unset=True)
-        for key, val in update_data.items():
+        unset_fields = schema.model_dump(exclude_unset=True)
+        for key in unset_fields.keys():
+            val = getattr(schema, key)
             setattr(task, key, val)
 
         await task.save()
