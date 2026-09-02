@@ -1,3 +1,4 @@
+import base64
 import json
 import os
 from datetime import datetime, date
@@ -138,7 +139,44 @@ class GmailService:
                 return resp.json().get("access_token")
             return None
 
-    def _parse_message_data(self, data: Dict[str, Any], default_date: str) -> Dict[str, Any]:
+    def _extract_body_from_payload(self, payload: Dict[str, Any]) -> str:
+        """
+        Extract plain text or HTML body from a Gmail message payload.
+        """
+        body_data = payload.get("body", {}).get("data")
+        if body_data:
+            try:
+                return base64.urlsafe_b64decode(body_data.encode("ascii")).decode("utf-8", errors="replace")
+            except Exception:
+                pass
+
+        parts = payload.get("parts", [])
+        text_plain = ""
+        text_html = ""
+
+        def walk_parts(subparts):
+            nonlocal text_plain, text_html
+            for part in subparts:
+                mime = part.get("mimeType", "").lower()
+                data = part.get("body", {}).get("data")
+                if data:
+                    try:
+                        decoded = base64.urlsafe_b64decode(data.encode("ascii")).decode("utf-8", errors="replace")
+                        if mime == "text/plain" and not text_plain:
+                            text_plain = decoded
+                        elif mime == "text/html" and not text_html:
+                            text_html = decoded
+                    except Exception:
+                        pass
+                if part.get("parts"):
+                    walk_parts(part.get("parts"))
+
+        walk_parts(parts)
+        return text_plain or text_html or ""
+
+    def _parse_message_data(
+        self, data: Dict[str, Any], default_date: str, include_body: bool = False
+    ) -> Dict[str, Any]:
         msg_id = data.get("id", "")
         snippet = data.get("snippet", "")
         payload = data.get("payload", {})
@@ -158,7 +196,7 @@ class GmailService:
             elif name == "date":
                 msg_date = h.get("value", default_date)
 
-        return {
+        result = {
             "id": msg_id,
             "sender": sender,
             "subject": subject,
@@ -167,6 +205,12 @@ class GmailService:
             "is_unread": "UNREAD" in label_ids,
             "labels": label_ids,
         }
+
+        if include_body:
+            extracted_body = self._extract_body_from_payload(payload)
+            result["body"] = extracted_body if extracted_body else snippet
+
+        return result
 
     async def fetch_today_raw_messages(self, user: User) -> List[Dict[str, Any]]:
         """
@@ -292,6 +336,81 @@ class GmailService:
             ]
 
         return demo_emails
+
+    async def fetch_message_by_id(self, user: User, message_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Fetch a single email message with its full body content.
+        """
+        access_token = await self.get_access_token(user)
+        today_str = date.today().strftime("%Y/%m/%d")
+
+        if access_token:
+            detail_url = f"https://gmail.googleapis.com/gmail/v1/users/me/messages/{message_id}?format=full"
+            async with httpx.AsyncClient() as client:
+                headers = {"Authorization": f"Bearer {access_token}"}
+                detail_resp = await client.get(detail_url, headers=headers)
+                if detail_resp.status_code == 200:
+                    return self._parse_message_data(detail_resp.json(), today_str, include_body=True)
+
+        # Realistic bodies for demo messages
+        demo_bodies = {
+            "demo-email-1": (
+                "Hi Team,\n\n"
+                "Please make sure to submit the final specifications and your code review for the weekly "
+                "planner module by 4:00 PM today. Let me know if you hit any blockers so we can resolve "
+                "them immediately.\n\n"
+                "Best regards,\nSarah Connor"
+            ),
+            "demo-email-2": (
+                "Hi,\n\n"
+                "Let's schedule a 30-minute sync at 2:00 PM today to review customer feedback and roadmap "
+                "priorities for the upcoming sprint.\n\n"
+                "Looking forward to our chat,\nAlex Mercer"
+            ),
+            "demo-email-3": (
+                "Here is your weekly digest of top tech headlines, AI breakthroughs, and developer tool updates.\n\n"
+                "1. Fast inference with Groq LPU\n"
+                "2. Full-stack Python & FastAPI patterns\n"
+                "3. React performance tips for dashboard apps\n\n"
+                "Enjoy reading!\nTech.io Editorial Team"
+            ),
+            "demo-email-4": (
+                "Hello,\n\n"
+                "Your monthly cloud hosting invoice #98234 has been generated. Total balance due is $0.00.\n"
+                "No further payment action is needed.\n\n"
+                "Thank you for choosing Cloud Provider."
+            ),
+            "demo-email-5": (
+                "Hey team,\n\n"
+                "The responsive mockups for mobile layout and desktop inbox view are now published on Figma. "
+                "Please review the design tokens and component specs, and leave any comments before tomorrow.\n\n"
+                "Design Team"
+            ),
+            "demo-email-6": (
+                "A routine security checkup was completed on your linked account. All authentication keys "
+                "and permissions are in good standing.\n\n"
+                "Google Security Team"
+            ),
+        }
+
+        demo_emails = await self.fetch_all_messages(user, max_results=50)
+        for em in demo_emails:
+            if em.get("id") == message_id:
+                em_copy = dict(em)
+                em_copy["body"] = demo_bodies.get(message_id, em.get("snippet", ""))
+                return em_copy
+
+        # If not found in demo list, return basic structured message
+        return {
+            "id": message_id,
+            "sender": "Sender <sender@example.com>",
+            "subject": f"Email Details ({message_id})",
+            "snippet": "Details for this email message.",
+            "body": f"This is the email body for message ID: {message_id}",
+            "date": today_str,
+            "is_unread": False,
+            "labels": ["INBOX"],
+        }
 
     async def analyze_messages_with_groq(self, user: User) -> List[Dict[str, Any]]:
         """

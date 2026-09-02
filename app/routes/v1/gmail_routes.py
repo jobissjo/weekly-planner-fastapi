@@ -142,6 +142,23 @@ async def get_all_gmail_messages(
     )
 
 
+@router.get("/message/{message_id}", response_model=BaseResponse[dict])
+async def get_gmail_message_by_id(
+    message_id: str,
+    current_user: User = Depends(any_user_role),
+):
+    if not await gmail_service.is_feature_enabled():
+        raise CustomException("Gmail integration feature is currently disabled by administrator", 403)
+    message = await gmail_service.fetch_message_by_id(current_user, message_id)
+    if not message:
+        raise CustomException("Email message not found", 404)
+    return BaseResponse(
+        status="success",
+        message="Email message details retrieved successfully",
+        data=message,
+    )
+
+
 @router.post("/convert-to-task", response_model=BaseResponse[TaskResponse])
 async def convert_gmail_to_task(
     body: ConvertGmailToTaskBody, current_user: User = Depends(any_user_role)
