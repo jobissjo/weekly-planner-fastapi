@@ -126,6 +126,22 @@ async def get_important_gmail_today(current_user: User = Depends(any_user_role))
     )
 
 
+@router.get("/all-messages", response_model=BaseResponse[List[dict]])
+async def get_all_gmail_messages(
+    q: Optional[str] = None,
+    max_results: int = 25,
+    current_user: User = Depends(any_user_role),
+):
+    if not await gmail_service.is_feature_enabled():
+        raise CustomException("Gmail integration feature is currently disabled by administrator", 403)
+    messages = await gmail_service.fetch_all_messages(current_user, max_results=max_results, query=q)
+    return BaseResponse(
+        status="success",
+        message="Gmail inbox messages retrieved successfully",
+        data=messages,
+    )
+
+
 @router.post("/convert-to-task", response_model=BaseResponse[TaskResponse])
 async def convert_gmail_to_task(
     body: ConvertGmailToTaskBody, current_user: User = Depends(any_user_role)
