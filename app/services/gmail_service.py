@@ -15,6 +15,7 @@ from app.utils.common import CustomException
 class GmailService:
     def __init__(self):
         self.logger = logger
+        self._token_cache: Dict[str, Dict[str, Any]] = {}
 
     async def is_feature_enabled(self) -> bool:
         """
@@ -50,7 +51,7 @@ class GmailService:
             "https://accounts.google.com/o/oauth2/v2/auth"
             f"?client_id={client_id}"
             f"&redirect_uri={redirect_uri}"
-            "&response_type=code"
+            f"&response_type=code"
             f"&scope={scope}"
             "&access_type=offline"
             "&prompt=consent"
@@ -108,15 +109,22 @@ class GmailService:
                 user.gmail_refresh_token = refresh_token
             await user.save()
 
+            if access_token:
+                self._token_cache[str(user.id)] = {
+                    "access_token": access_token,
+                    "expires_at": datetime.utcnow().timestamp() + data.get("expires_in", 3600),
+                }
+
             return {"status": "success", "gmail_email": gmail_email}
 
     async def disconnect_gmail(self, user: User) -> None:
+        self._token_cache.pop(str(user.id), None)
         user.gmail_connected = False
         user.gmail_refresh_token = None
         user.gmail_email = None
         await user.save()
 
-    async def get_access_token(self, user: User) -> Optional[str]:
+    async def get_access_token(self, user: User, force_refresh: bool = False) -> Optional[str]:
         if not user.gmail_refresh_token or user.gmail_refresh_token == "demo_refresh_token":
             return None
 
@@ -124,6 +132,15 @@ class GmailService:
         client_secret = setting.GOOGLE_CLIENT_SECRET
         if not client_id or not client_secret:
             return None
+
+        user_id_str = str(user.id)
+        now_ts = datetime.utcnow().timestamp()
+
+        # Check in-memory token cache to avoid excessive requests to Google
+        if not force_refresh and user_id_str in self._token_cache:
+            cached = self._token_cache[user_id_str]
+            if cached.get("expires_at", 0) > now_ts + 60:
+                return cached.get("access_token")
 
         token_url = "https://oauth2.googleapis.com/token"
         payload = {
@@ -134,9 +151,36 @@ class GmailService:
         }
 
         async with httpx.AsyncClient() as client:
-            resp = await client.post(token_url, data=payload)
+            try:
+                resp = await client.post(token_url, data=payload, timeout=10.0)
+            except Exception as exc:
+                self.logger.error(f"HTTP error contacting Google token endpoint for user {user.id}: {exc}")
+                return None
+
             if resp.status_code == 200:
-                return resp.json().get("access_token")
+                data = resp.json()
+                token = data.get("access_token")
+                expires_in = data.get("expires_in", 3600)
+                self._token_cache[user_id_str] = {
+                    "access_token": token,
+                    "expires_at": now_ts + expires_in,
+                }
+                return token
+
+            if resp.status_code in (400, 401):
+                # Google returned 400 Bad Request (e.g. invalid_grant / expired / revoked)
+                self._token_cache.pop(user_id_str, None)
+                user.gmail_connected = False
+                user.gmail_refresh_token = None
+                await user.save()
+                self.logger.warning(
+                    f"Google Gmail OAuth token invalid/revoked for user {user.id} ({resp.status_code}: {resp.text}). Marking Gmail as disconnected."
+                )
+                return None
+
+            self.logger.error(
+                f"Unexpected status from Google token endpoint for user {user.id}: {resp.status_code} - {resp.text}"
+            )
             return None
 
     def _extract_body_from_payload(self, payload: Dict[str, Any]) -> str:
@@ -216,9 +260,12 @@ class GmailService:
         """
         Fetch today's incoming email metadata from Gmail REST API.
         """
+        if not user.gmail_connected:
+            raise CustomException("Gmail account is not connected. Please connect your account.", 400)
+
         access_token = await self.get_access_token(user)
         if not access_token:
-            return []
+            raise CustomException("Gmail authorization expired or was revoked. Please reconnect your account.", 400)
 
         today_str = date.today().strftime("%Y/%m/%d")
         messages_url = f"https://gmail.googleapis.com/gmail/v1/users/me/messages?q=after:{today_str}&maxResults=15"
@@ -227,16 +274,20 @@ class GmailService:
         async with httpx.AsyncClient() as client:
             headers = {"Authorization": f"Bearer {access_token}"}
             list_resp = await client.get(messages_url, headers=headers)
-            if list_resp.status_code != 200:
-                return []
-
-            msg_ids = list_resp.json().get("messages", [])
-            for item in msg_ids[:10]:
-                msg_id = item.get("id")
-                detail_url = f"https://gmail.googleapis.com/gmail/v1/users/me/messages/{msg_id}?format=full"
-                detail_resp = await client.get(detail_url, headers=headers)
-                if detail_resp.status_code == 200:
-                    raw_list.append(self._parse_message_data(detail_resp.json(), today_str))
+            if list_resp.status_code == 200:
+                msg_ids = list_resp.json().get("messages", [])
+                for item in msg_ids[:10]:
+                    msg_id = item.get("id")
+                    detail_url = f"https://gmail.googleapis.com/gmail/v1/users/me/messages/{msg_id}?format=full"
+                    detail_resp = await client.get(detail_url, headers=headers)
+                    if detail_resp.status_code == 200:
+                        raw_list.append(self._parse_message_data(detail_resp.json(), today_str))
+            elif list_resp.status_code in (401, 403):
+                self._token_cache.pop(str(user.id), None)
+                user.gmail_connected = False
+                user.gmail_refresh_token = None
+                await user.save()
+                raise CustomException("Gmail authorization expired or was revoked. Please reconnect your account.", 400)
 
         return raw_list
 
@@ -246,111 +297,67 @@ class GmailService:
         """
         Fetch all recent emails from user's Gmail inbox with optional search query.
         """
+        if not user.gmail_connected:
+            raise CustomException("Gmail account is not connected. Please connect your account.", 400)
+
         access_token = await self.get_access_token(user)
+        if not access_token:
+            raise CustomException("Gmail authorization expired or was revoked. Please reconnect your account.", 400)
+
         today_str = date.today().strftime("%Y/%m/%d")
-
-        if access_token:
-            params = f"maxResults={min(max_results, 50)}"
-            if query:
-                params += f"&q={query}"
-            messages_url = f"https://gmail.googleapis.com/gmail/v1/users/me/messages?{params}"
-
-            raw_list = []
-            async with httpx.AsyncClient() as client:
-                headers = {"Authorization": f"Bearer {access_token}"}
-                list_resp = await client.get(messages_url, headers=headers)
-                if list_resp.status_code == 200:
-                    msg_ids = list_resp.json().get("messages", [])
-                    for item in msg_ids[:max_results]:
-                        msg_id = item.get("id")
-                        detail_url = f"https://gmail.googleapis.com/gmail/v1/users/me/messages/{msg_id}?format=full"
-                        detail_resp = await client.get(detail_url, headers=headers)
-                        if detail_resp.status_code == 200:
-                            raw_list.append(self._parse_message_data(detail_resp.json(), today_str))
-                    if raw_list:
-                        return raw_list
-
-        # Realistic fallback demo emails if disconnected, demo mode, or empty inbox
-        demo_emails = [
-            {
-                "id": "demo-email-1",
-                "sender": "Sarah Connor <sarah@cyberdyne.io>",
-                "subject": "Urgent: Project Review & Final Specs Submission Today",
-                "snippet": "Please submit the final specs and code review for the weekly planner module by 4:00 PM today.",
-                "date": date.today().isoformat(),
-                "is_unread": True,
-                "labels": ["INBOX", "UNREAD", "IMPORTANT"],
-            },
-            {
-                "id": "demo-email-2",
-                "sender": "Alex Mercer <alex@acme.org>",
-                "subject": "Schedule Sync Meeting for Strategy Discussion",
-                "snippet": "Hi, let's schedule a 30 min sync at 2:00 PM today to review customer feedback.",
-                "date": date.today().isoformat(),
-                "is_unread": True,
-                "labels": ["INBOX", "UNREAD"],
-            },
-            {
-                "id": "demo-email-3",
-                "sender": "Weekly Digest <newsletter@tech.io>",
-                "subject": "Top 10 Tech News This Week",
-                "snippet": "Read our weekly digest on latest AI breakthroughs and framework releases...",
-                "date": date.today().isoformat(),
-                "is_unread": False,
-                "labels": ["INBOX"],
-            },
-            {
-                "id": "demo-email-4",
-                "sender": "Cloud Provider <billing@cloud.net>",
-                "subject": "Monthly Invoice Notification",
-                "snippet": "Your monthly invoice #98234 is ready for download. Amount: $0.00.",
-                "date": date.today().isoformat(),
-                "is_unread": False,
-                "labels": ["INBOX"],
-            },
-            {
-                "id": "demo-email-5",
-                "sender": "Design Team <design@creative.co>",
-                "subject": "Updated Figma Mockups for Mobile Layout",
-                "snippet": "Hey team, the responsive mobile mockups for the dashboard and inbox cards have been uploaded.",
-                "date": date.today().isoformat(),
-                "is_unread": True,
-                "labels": ["INBOX", "UNREAD"],
-            },
-            {
-                "id": "demo-email-6",
-                "sender": "Security Alerts <noreply@accounts.google.com>",
-                "subject": "Security checkup completed successfully",
-                "snippet": "No security issues were found on your linked Google account during the regular checkup.",
-                "date": date.today().isoformat(),
-                "is_unread": False,
-                "labels": ["INBOX"],
-            },
-        ]
-
+        params = f"maxResults={min(max_results, 50)}"
         if query:
-            q_lower = query.lower()
-            demo_emails = [
-                e for e in demo_emails
-                if q_lower in e["subject"].lower() or q_lower in e["sender"].lower() or q_lower in e["snippet"].lower()
-            ]
+            params += f"&q={query}"
+        messages_url = f"https://gmail.googleapis.com/gmail/v1/users/me/messages?{params}"
 
-        return demo_emails
+        raw_list = []
+        async with httpx.AsyncClient() as client:
+            headers = {"Authorization": f"Bearer {access_token}"}
+            list_resp = await client.get(messages_url, headers=headers)
+            if list_resp.status_code == 200:
+                msg_ids = list_resp.json().get("messages", [])
+                for item in msg_ids[:max_results]:
+                    msg_id = item.get("id")
+                    detail_url = f"https://gmail.googleapis.com/gmail/v1/users/me/messages/{msg_id}?format=full"
+                    detail_resp = await client.get(detail_url, headers=headers)
+                    if detail_resp.status_code == 200:
+                        raw_list.append(self._parse_message_data(detail_resp.json(), today_str))
+                return raw_list
+            elif list_resp.status_code in (401, 403):
+                self._token_cache.pop(str(user.id), None)
+                user.gmail_connected = False
+                user.gmail_refresh_token = None
+                await user.save()
+                raise CustomException("Gmail authorization expired or was revoked. Please reconnect your account.", 400)
+
+        return []
 
     async def fetch_message_by_id(self, user: User, message_id: str) -> Optional[Dict[str, Any]]:
         """
         Fetch a single email message with its full body content.
         """
-        access_token = await self.get_access_token(user)
-        today_str = date.today().strftime("%Y/%m/%d")
+        if not user.gmail_connected:
+            raise CustomException("Gmail account is not connected. Please connect your account.", 400)
 
-        if access_token:
-            detail_url = f"https://gmail.googleapis.com/gmail/v1/users/me/messages/{message_id}?format=full"
-            async with httpx.AsyncClient() as client:
-                headers = {"Authorization": f"Bearer {access_token}"}
-                detail_resp = await client.get(detail_url, headers=headers)
-                if detail_resp.status_code == 200:
-                    return self._parse_message_data(detail_resp.json(), today_str, include_body=True)
+        access_token = await self.get_access_token(user)
+        if not access_token:
+            raise CustomException("Gmail authorization expired or was revoked. Please reconnect your account.", 400)
+
+        today_str = date.today().strftime("%Y/%m/%d")
+        detail_url = f"https://gmail.googleapis.com/gmail/v1/users/me/messages/{message_id}?format=full"
+        async with httpx.AsyncClient() as client:
+            headers = {"Authorization": f"Bearer {access_token}"}
+            detail_resp = await client.get(detail_url, headers=headers)
+            if detail_resp.status_code == 200:
+                return self._parse_message_data(detail_resp.json(), today_str, include_body=True)
+            elif detail_resp.status_code in (401, 403):
+                self._token_cache.pop(str(user.id), None)
+                user.gmail_connected = False
+                user.gmail_refresh_token = None
+                await user.save()
+                raise CustomException("Gmail authorization expired or was revoked. Please reconnect your account.", 400)
+
+        return None
 
         # Realistic bodies for demo messages
         demo_bodies = {
@@ -421,34 +428,7 @@ class GmailService:
         # Fallback to realistic demo emails if Gmail isn't connected or has no new messages today
         if not raw_emails:
             raw_emails = [
-                {
-                    "id": "demo-email-1",
-                    "sender": "Project Lead <manager@company.com>",
-                    "subject": "Urgent: Project Review & Final Specs Submission Today",
-                    "snippet": "Please submit the final specs and code review for the weekly planner module by 4:00 PM today.",
-                    "date": date.today().isoformat(),
-                },
-                {
-                    "id": "demo-email-2",
-                    "sender": "Client Services <client@acme.org>",
-                    "subject": "Schedule Sync Meeting for Strategy Discussion",
-                    "snippet": "Hi, let's schedule a 30 min sync at 2:00 PM today to review customer feedback.",
-                    "date": date.today().isoformat(),
-                },
-                {
-                    "id": "demo-email-3",
-                    "sender": "Weekly Digest <newsletter@tech.io>",
-                    "subject": "Top 10 Tech News This Week",
-                    "snippet": "Read our weekly digest on latest AI breakthroughs and framework releases...",
-                    "date": date.today().isoformat(),
-                },
-                {
-                    "id": "demo-email-4",
-                    "sender": "Cloud Provider <billing@cloud.net>",
-                    "subject": "Monthly Invoice Notification",
-                    "snippet": "Your monthly invoice #98234 is ready for download. Amount: $0.00.",
-                    "date": date.today().isoformat(),
-                },
+                
             ]
 
         # Use Groq AI / LangChain Chat model to filter and extract important items

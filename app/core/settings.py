@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     GROQ_API_KEY: Optional[str] = None
     OPENAI_MODEL_NAME: str = "gpt-4o-mini"
     GEMINI_MODEL_NAME: str = "gemini-1.5-flash"
-    GROQ_MODEL_NAME: str = "llama-3.3-70b-versatile"
+    GROQ_MODEL_NAME: str = "openai/gpt-oss-120b"
 
     MEDIA_ROOT: Path = BASE_DIR / "media"
 
