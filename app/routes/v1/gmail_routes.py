@@ -19,6 +19,7 @@ class GmailStatusResponse(BaseModel):
     connected: bool
     email: Optional[str] = None
     feature_enabled: bool = True
+    reconnect_required: bool = False
 
 
 class GmailCallbackBody(BaseModel):
@@ -41,13 +42,26 @@ class FeatureToggleBody(BaseModel):
 @router.get("/status", response_model=BaseResponse[GmailStatusResponse])
 async def get_gmail_status(current_user: User = Depends(any_user_role)):
     enabled = await gmail_service.is_feature_enabled()
+    connected = getattr(current_user, "gmail_connected", False)
+    email = getattr(current_user, "gmail_email", None)
+    reconnect_required = False
+
+    if connected and current_user.gmail_refresh_token:
+        token = await gmail_service.get_access_token(current_user)
+        if not token:
+            connected = False
+            reconnect_required = True
+    elif not connected and email:
+        reconnect_required = True
+
     return BaseResponse(
         status="success",
         message="Gmail status retrieved successfully",
         data=GmailStatusResponse(
-            connected=getattr(current_user, "gmail_connected", False),
-            email=getattr(current_user, "gmail_email", None),
+            connected=connected,
+            email=email,
             feature_enabled=enabled,
+            reconnect_required=reconnect_required,
         ),
     )
 
@@ -118,6 +132,8 @@ async def disconnect_gmail(current_user: User = Depends(any_user_role)):
 async def get_important_gmail_today(current_user: User = Depends(any_user_role)):
     if not await gmail_service.is_feature_enabled():
         raise CustomException("Gmail integration feature is currently disabled by administrator", 403)
+    if not getattr(current_user, "gmail_connected", False):
+        raise CustomException("Gmail is not connected or authorization expired. Please reconnect your account.", 400)
     items = await gmail_service.analyze_messages_with_groq(current_user)
     return BaseResponse(
         status="success",
@@ -134,6 +150,8 @@ async def get_all_gmail_messages(
 ):
     if not await gmail_service.is_feature_enabled():
         raise CustomException("Gmail integration feature is currently disabled by administrator", 403)
+    if not getattr(current_user, "gmail_connected", False):
+        raise CustomException("Gmail is not connected or authorization expired. Please reconnect your account.", 400)
     messages = await gmail_service.fetch_all_messages(current_user, max_results=max_results, query=q)
     return BaseResponse(
         status="success",
@@ -149,6 +167,8 @@ async def get_gmail_message_by_id(
 ):
     if not await gmail_service.is_feature_enabled():
         raise CustomException("Gmail integration feature is currently disabled by administrator", 403)
+    if not getattr(current_user, "gmail_connected", False):
+        raise CustomException("Gmail is not connected or authorization expired. Please reconnect your account.", 400)
     message = await gmail_service.fetch_message_by_id(current_user, message_id)
     if not message:
         raise CustomException("Email message not found", 404)
